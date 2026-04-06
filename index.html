@@ -95,51 +95,6 @@
             transform: translateX(-50%) scale(1);
         }
 
-        .key-guides {
-            position: absolute;
-            left: 0;
-            top: 120px;
-            display: flex;
-            flex-direction: column;
-            z-index: 5;
-        }
-
-        .lane-info {
-            height: 100px;
-            width: 100px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-bottom: 1px solid #f1f5f9;
-            border-right: 2px solid #e2e8f0;
-            transition: all 0.2s;
-        }
-
-        .lane-info .title {
-            font-weight: 900;
-            font-size: 0.65rem;
-            color: #94a3b8;
-            margin-bottom: 4px;
-        }
-
-        .lane-info .keys {
-            font-size: 10px;
-            color: #cbd5e1;
-            font-family: monospace;
-            text-align: center;
-            line-height: 1;
-        }
-
-        .lane-info.active {
-            background: #1e293b;
-            border-right-color: #6366f1;
-        }
-
-        .lane-info.active .title {
-            color: #818cf8;
-        }
     </style>
 </head>
 
@@ -147,13 +102,6 @@
 
     <div id="overlay">
         <div id="judgment" class="judgment-text">PERFECT</div>
-
-        <div class="key-guides" id="key-guides">
-            <div class="lane-info" data-lane="0"><span class="title">ROW 1</span><span class="keys">1~0 !~)</span></div>
-            <div class="lane-info" data-lane="1"><span class="title">ROW 2</span><span class="keys">q~p Q~P</span></div>
-            <div class="lane-info" data-lane="2"><span class="title">ROW 3</span><span class="keys">a~l A~L</span></div>
-            <div class="lane-info" data-lane="3"><span class="title">ROW 4</span><span class="keys">z~m Z~M</span></div>
-        </div>
 
         <div id="controls-panel" class="controls-container">
             <div class="toggle-btn" id="panel-toggle">
@@ -360,7 +308,7 @@
 
             for (let i = 1; i < sourceNotes.length; i++) {
                 const note = sourceNotes[i];
-                if (Math.abs(note.time - groupStartTime) < 0.03) {
+                if (Math.abs(note.time - groupStartTime) < 0.06) {
                     currentGroup.push(note);
                 } else {
                     groups.push({ time: groupStartTime, notes: currentGroup });
@@ -463,17 +411,9 @@
                 Math.abs(gameTime - n.time) < 0.25
             );
 
-            const lane = getLaneFromMidi(pressedMidi);
-
             if (target) {
                 triggerNote(target);
                 showJudgment("ACCURATE", "#1e293b");
-            }
-
-            const laneEl = document.querySelector(`.lane-info[data-lane="${lane}"]`);
-            if (laneEl) {
-                laneEl.classList.add('active');
-                setTimeout(() => laneEl.classList.remove('active'), 150);
             }
         }
 
@@ -502,8 +442,11 @@
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = 'chartreuse';
             ctx.fillRect(20, 120, 190, 540);
+            ctx.strokeStyle = '#111111';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, 120, 190, 540);
 
             const rowY = canvas.height * 0.38;
             displayGroups.forEach(group => {
@@ -524,7 +467,7 @@
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = '#7fff00';
                 ctx.strokeStyle = '#111111';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
