@@ -57,11 +57,11 @@
             margin-bottom: 18px;
         }
 
-        input[type="file"], button {
+        input[type="file"], select, button {
             font-size: 14px;
         }
 
-        input[type="file"], button {
+        input[type="file"], select, button {
             color: var(--text);
             background: #222734;
             border: 1px solid #3a4150;
@@ -190,6 +190,10 @@
 
         <div class="controls">
             <input type="file" id="fileInput" accept=".mid,.midi" />
+            <select id="projectMidiSelect" aria-label="프로젝트 MIDI 선택">
+                <option value="test1.mid">test1.mid</option>
+            </select>
+            <button id="loadProjectBtn">프로젝트 불러오기</button>
             <button id="playBtn" disabled>▶ 재생</button>
             <button id="stopBtn" disabled>■ 정지</button>
         </div>
@@ -211,6 +215,8 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
+        const projectMidiSelect = document.getElementById('projectMidiSelect');
+        const loadProjectBtn = document.getElementById('loadProjectBtn');
         const playBtn = document.getElementById('playBtn');
         const stopBtn = document.getElementById('stopBtn');
         const status = document.getElementById('status');
@@ -337,6 +343,32 @@
 
             allNotes.sort((a, b) => a.timeMs - b.timeMs);
             return allNotes;
+        }
+
+        async function loadMidiArrayBuffer(arrayBuffer, sourceName) {
+            stopPlayback();
+            status.textContent = `MIDI 로딩 중... ${sourceName}`;
+
+            currentMidi = new Midi(arrayBuffer);
+            const allNotes = collectNotes(currentMidi);
+            noteGroups = groupNotesBy30ms(allNotes);
+            renderGroups(noteGroups);
+
+            playBtn.disabled = noteGroups.length === 0;
+            stopBtn.disabled = true;
+
+            const sec = (getLastTimeMs(currentMidi) / 1000).toFixed(2);
+            status.textContent = `로딩 완료 | ${sourceName} | 그룹 ${noteGroups.length}개 | 길이 ${sec}초`;
+        }
+
+        async function loadProjectMidi(path) {
+            const response = await fetch(path);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${path}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            await loadMidiArrayBuffer(arrayBuffer, path);
         }
 
         function groupNotesBy30ms(allNotes) {
@@ -526,21 +558,15 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            stopPlayback();
-            status.textContent = 'MIDI 로딩 중...';
+            await loadMidiArrayBuffer(await file.arrayBuffer(), file.name);
+        });
 
-            const arrayBuffer = await file.arrayBuffer();
-            currentMidi = new Midi(arrayBuffer);
-
-            const allNotes = collectNotes(currentMidi);
-            noteGroups = groupNotesBy30ms(allNotes);
-            renderGroups(noteGroups);
-
-            playBtn.disabled = noteGroups.length === 0;
-            stopBtn.disabled = true;
-
-            const sec = (getLastTimeMs(currentMidi) / 1000).toFixed(2);
-            status.textContent = `로딩 완료 | 그룹 ${noteGroups.length}개 | 길이 ${sec}초`;
+        loadProjectBtn.addEventListener('click', async () => {
+            try {
+                await loadProjectMidi(projectMidiSelect.value);
+            } catch (error) {
+                status.textContent = `불러오기 실패: ${error.message}`;
+            }
         });
 
         playBtn.addEventListener('click', startPlayback);
