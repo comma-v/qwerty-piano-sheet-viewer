@@ -173,18 +173,20 @@
         }
 
         #keyBeam {
+            display: none;
+        }
+
+        .noteBeam {
             position: absolute;
-            left: 50%;
-            bottom: 21px;
             width: 10px;
             height: calc(var(--sheet-height) / 8);
-            transform: translateX(-50%);
             pointer-events: none;
             z-index: 11;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+            transform: translateX(-50%);
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
             filter: blur(0.2px);
-            opacity: 0.8;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
+            opacity: 0;
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
         }
 
         .scrollbar {
@@ -230,7 +232,6 @@
                 <div id="sheet">
                 </div>
                 <div id="cursor"></div>
-                <div id="keyBeam"></div>
             </div>
 
             <div class="scrollbar" id="scrollbar">
@@ -249,7 +250,6 @@
         const sheet = document.getElementById('sheet');
         const sheetWrap = document.getElementById('sheetWrap');
         const cursor = document.getElementById('cursor');
-        const keyBeam = document.getElementById('keyBeam');
         const scrollbar = document.getElementById('scrollbar');
         const scrollThumb = document.getElementById('scrollThumb');
 
@@ -278,12 +278,11 @@
         const keyboardWidth = 620;
         const fallDurationMs = 1100;
         const snapDistancePx = 0;
+        const judgeRangePx = 60;
         const judgeHoldMs = 240;
         const startY = -40;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
-        let beamTimer = null;
-
         const keyArray = ["1", "!", "2", "@", "3", "4", "$", "5", "%", "6", "^", "7", "8", "*", "9", "(", "0", "q", "Q", "w", "W", "e", "E", "r", "t", "T", "y", "Y", "u", "i", "I", "o", "O", "p", "P", "a", "s", "S", "d", "D", "f", "g", "G", "h", "H", "j", "J", "k", "l", "L", "z", "Z", "x", "c", "C", "v", "V", "b", "B", "n", "m", "M"];
         const keyboardLayouts = new Map();
         const keyOrderMap = new Map();
@@ -531,22 +530,16 @@
                 noteEl.style.transform = 'translate(-50%, -50%)';
                 spawnedNote.element = noteEl;
 
+                const beamEl = document.createElement('div');
+                beamEl.className = 'noteBeam';
+                beamEl.style.left = `${spawnedNote.x}px`;
+                beamEl.style.top = `${getJudgmentY() - (sheetWrap.clientHeight / 8)}px`;
+                spawnedNote.beamEl = beamEl;
+
                 sheet.appendChild(noteEl);
+                sheet.appendChild(beamEl);
                 activeNotes.push(spawnedNote);
             });
-
-            updateKeyBeam();
-        }
-
-        function updateKeyBeam() {
-            if (activeNotes.length === 0) {
-                keyBeam.style.opacity = '0';
-                return;
-            }
-
-            const centerX = activeNotes.reduce((sum, note) => sum + (note.x ?? 0), 0) / activeNotes.length;
-            keyBeam.style.left = `${centerX}px`;
-            keyBeam.style.opacity = '0.8';
         }
 
         function renderPlaybackFrame(currentTimeMs) {
@@ -564,13 +557,18 @@
                 note.y = y;
                 note.element.style.top = `${y}px`;
 
+                if (note.beamEl) {
+                    const beamHeight = sheetWrap.clientHeight / 8;
+                    note.beamEl.style.top = `${targetY - beamHeight}px`;
+                    note.beamEl.style.left = `${note.x}px`;
+                    note.beamEl.style.opacity = Math.max(0.08, Math.min(0.9, 1 - (Math.abs(targetY - y) / judgeRangePx))).toFixed(2);
+                }
+
                 if (y >= targetY && !note.locked) {
                     note.locked = true;
                     pausePlayback();
                 }
             });
-
-            updateKeyBeam();
         }
 
         function triggerNote(note) {
@@ -582,18 +580,14 @@
                     note.element.remove();
                 }, 140);
             }
+            if (note.beamEl) {
+                note.beamEl.remove();
+            }
 
             clearTimeout(judgeFlashTimer);
             cursor.classList.add('flash');
             judgeFlashTimer = setTimeout(() => {
                 cursor.classList.remove('flash');
-            }, 120);
-
-            clearTimeout(beamTimer);
-            keyBeam.style.opacity = '1';
-            keyBeam.style.height = 'calc(var(--sheet-height) / 8)';
-            beamTimer = setTimeout(() => {
-                keyBeam.style.opacity = '0.8';
             }, 120);
         }
 
@@ -655,7 +649,14 @@
             if (bestNote && bestDistance <= judgeTolerancePx) {
                 triggerNote(bestNote);
                 activeNotes = activeNotes.filter(note => note !== bestNote);
-                showFeedback('PERPECT!!');
+                showFeedback('100%');
+                return;
+            }
+
+            if (bestNote && bestDistance <= judgeRangePx) {
+                const percent = Math.max(1, Math.round(100 - ((bestDistance / judgeRangePx) * 99)));
+                showFeedback(`${percent}%`);
+                pausePlayback();
                 return;
             }
 
