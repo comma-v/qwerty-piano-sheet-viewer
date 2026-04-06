@@ -33,6 +33,7 @@
             font-family: sans-serif;
             text-align: center;
             color: var(--text);
+            background: var(--bg);
         }
 
         h1 {
@@ -68,6 +69,7 @@
             overflow: auto;
             position: relative;
             background: var(--panel);
+            border: 1px solid #ddd;
         }
 
         #sheet {
@@ -75,7 +77,6 @@
             min-height: var(--sheet-height);
             margin: 0 auto;
             position: relative;
-
         }
 
         .note {
@@ -90,6 +91,8 @@
             white-space: nowrap;
             user-select: none;
             transform: translate(-50%, -50%);
+            border: 1px solid #ccc;
+            border-radius: 8px;
         }
 
         .note.hit {
@@ -112,6 +115,40 @@
             will-change: transform;
             box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
         }
+
+        .sheetTextWrap {
+            width: 720px;
+            max-width: 100%;
+            margin: 24px auto 0;
+            text-align: left;
+        }
+
+        .sheetTextHead {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sheetTextHead h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        #sheetText {
+            width: 100%;
+            min-height: 220px;
+            resize: vertical;
+            padding: 12px;
+            font-size: 15px;
+            line-height: 1.6;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 
@@ -122,6 +159,7 @@
         <input type="file" id="fileInput" accept=".mid,.midi" />
         <button id="playBtn" disabled>▶ 재생</button>
         <button id="stopBtn" disabled>■ 정지</button>
+        <button id="copyBtn" disabled>📋 악보 복사</button>
     </div>
 
     <div id="status">MIDI 파일을 선택하세요.</div>
@@ -132,18 +170,27 @@
         </div>
     </div>
 
+    <div class="sheetTextWrap">
+        <div class="sheetTextHead">
+            <h2>복사용 악보</h2>
+        </div>
+        <textarea id="sheetText" readonly placeholder="MIDI를 불러오면 여기에 복사 가능한 악보가 생성됩니다."></textarea>
+    </div>
+
     <script>
         const fileInput = document.getElementById('fileInput');
         const playBtn = document.getElementById('playBtn');
         const stopBtn = document.getElementById('stopBtn');
+        const copyBtn = document.getElementById('copyBtn');
         const status = document.getElementById('status');
         const sheet = document.getElementById('sheet');
         const sheetWrap = document.getElementById('sheetWrap');
         const cursor = document.getElementById('cursor');
+        const sheetText = document.getElementById('sheetText');
 
         const lineWidth = 320;
-        const rowHeight = 240; // 동시노트 6개까지 세로로 안 겹치게 충분히 확보
-        const stackHeight = 32; // 세로 스택 간격 확대
+        const rowHeight = 240;
+        const stackHeight = 32;
         const maxStack = 6;
         const groupGapMs = 30;
         const pixelsPerMs = 0.18;
@@ -159,8 +206,8 @@
         let scrollVisualY = 0;
 
         let synth = null;
-        function initSampler() {
 
+        function initSampler() {
             synth = new Tone.Sampler({
                 urls: {
                     "A0": "A0.mp3", "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3",
@@ -180,6 +227,7 @@
             }).toDestination();
         }
         initSampler();
+
         function setKeyMap() {
             const keyMap = new Map();
             const keyArray = [
@@ -270,7 +318,6 @@
             const x = scaledTime % lineWidth;
             const row = Math.floor(scaledTime / lineWidth);
 
-            // 같은 시간대 노트는 같은 x에 두고 세로로만 쌓기
             const baseY = row * rowHeight + 110;
             const y = baseY - stackIndex * stackHeight;
 
@@ -301,6 +348,45 @@
             });
 
             sheet.style.height = `${Math.max(640, (maxRow + 2) * rowHeight)}px`;
+        }
+
+        function buildCopyableSheet(groups) {
+            if (!groups.length) return '';
+
+            const lines = [];
+            let currentLine = [];
+
+            groups.forEach(group => {
+                const chars = group.notes.map(n => n.keyChar).filter(Boolean);
+
+                if (!chars.length) return;
+
+                let token = '';
+                if (chars.length === 1) {
+                    token = chars[0];
+                } else {
+                    token = `[${chars.join('')}]`;
+                }
+
+                currentLine.push(token);
+
+                if (currentLine.length >= 16) {
+                    lines.push(currentLine.join(' '));
+                    currentLine = [];
+                }
+            });
+
+            if (currentLine.length) {
+                lines.push(currentLine.join(' '));
+            }
+
+            return lines.join('\n');
+        }
+
+        function updateSheetText() {
+            const text = buildCopyableSheet(noteGroups);
+            sheetText.value = text;
+            copyBtn.disabled = !text.trim();
         }
 
         function getCursorPosition(elapsedMs) {
@@ -403,6 +489,7 @@
             const allNotes = collectNotes(currentMidi);
             noteGroups = groupNotesBy30ms(allNotes);
             renderGroups(noteGroups);
+            updateSheetText();
 
             playBtn.disabled = noteGroups.length === 0;
             stopBtn.disabled = true;
@@ -412,9 +499,24 @@
         });
 
         playBtn.addEventListener('click', startPlayback);
+
         stopBtn.addEventListener('click', () => {
             stopPlayback();
             status.textContent = '정지됨';
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            const text = sheetText.value;
+            if (!text.trim()) return;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                status.textContent = '악보가 클립보드에 복사되었습니다.';
+            } catch (e) {
+                sheetText.focus();
+                sheetText.select();
+                status.textContent = '자동 복사가 막혀서 텍스트를 선택했습니다. Ctrl+C로 복사하세요.';
+            }
         });
     </script>
 </body>

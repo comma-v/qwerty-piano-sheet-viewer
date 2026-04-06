@@ -3,71 +3,82 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>MIDI Sheet Cursor Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MIDI Cursor Player</title>
     <script src="https://unpkg.com/tone"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root {
-            --bg: #f5f5f5;
+            --bg: #ffffff;
             --text: #111;
             --panel: #fff;
-            --border: #222;
-            --note-border: #333;
+            --border: #666;
             --note-hit: #d5ffd7;
             --note-hit-border: #148a2b;
             --cursor: red;
-            --sheet-width: 400px;
-            --sheet-height: 640px;
-            --inner-width: 320px;
-            --row-height: 140px;
-            --line-color: rgba(0, 0, 0, 1);
+            --sheet-width: 760px;
+            --sheet-height: 520px;
+            --inner-width: 640px;
+            --scrollbar-h: 14px;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            padding: 24px;
-            font-family: sans-serif;
-            text-align: center;
+            min-height: 100vh;
+            padding: 72px 56px 40px;
+            font-family: Arial, Helvetica, sans-serif;
             color: var(--text);
+            background: var(--bg);
+            text-align: center;
+        }
+
+        .app {
+            max-width: 760px;
+            margin: 0 auto;
         }
 
         h1 {
-            margin: 0 0 12px;
+            margin: 0 0 14px;
             font-size: 28px;
+            font-weight: 700;
         }
 
         .controls {
             display: flex;
             justify-content: center;
             align-items: center;
+            gap: 10px;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
-        button,
-        input {
-            padding: 8px 12px;
+        input[type="file"], button {
             font-size: 14px;
         }
 
         #status {
-            min-height: 20px;
-            margin: 10px 0 16px;
+            min-height: 22px;
+            margin: 10px 0 18px;
             font-size: 14px;
         }
 
         #sheetWrap {
-            width: var(--sheet-width);
+            width: 100%;
             height: var(--sheet-height);
             margin: 0 auto;
-            overflow: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
             position: relative;
             background: var(--panel);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        #sheetWrap::-webkit-scrollbar {
+            width: 0;
+            height: 0;
         }
 
         #sheet {
@@ -75,19 +86,20 @@
             min-height: var(--sheet-height);
             margin: 0 auto;
             position: relative;
-
         }
 
         .note {
             position: absolute;
-            min-width: 32px;
-            padding: 5px 10px;
-            color: #000;
+            min-width: 34px;
+            padding: 6px 8px;
             background: #fff;
+            color: #111;
+            border: 1px solid var(--border);
+            border-radius: 0;
             font-size: 15px;
-            line-height: 32px;
+            line-height: 1.25;
             text-align: center;
-            white-space: nowrap;
+            white-space: pre-line;
             user-select: none;
             transform: translate(-50%, -50%);
         }
@@ -104,7 +116,7 @@
             z-index: 10;
             display: none;
             width: 3px;
-            height: 240px;
+            height: 220px;
             background: linear-gradient(to bottom, rgba(255, 0, 0, 0.15), var(--cursor), rgba(255, 0, 0, 0.15));
             transform: translate3d(0, 0, 0);
             transform-origin: center top;
@@ -112,23 +124,53 @@
             will-change: transform;
             box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
         }
+
+        .scrollbar {
+            width: 100%;
+            height: var(--scrollbar-h);
+            margin-top: 10px;
+            background: #ececec;
+            border: 1px solid #c9c9c9;
+            position: relative;
+            user-select: none;
+        }
+
+        .scrollbar__thumb {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            min-width: 36px;
+            background: #bdbdbd;
+            border: 1px solid #8b8b8b;
+            cursor: grab;
+        }
+
+        .scrollbar__thumb:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 
 <body>
-    <h1>🎹 MIDI Cursor Player</h1>
+    <div class="app">
+        <h1>🎹 MIDI Cursor Player</h1>
 
-    <div class="controls">
-        <input type="file" id="fileInput" accept=".mid,.midi" />
-        <button id="playBtn" disabled>▶ 재생</button>
-        <button id="stopBtn" disabled>■ 정지</button>
-    </div>
+        <div class="controls">
+            <input type="file" id="fileInput" accept=".mid,.midi" />
+            <button id="playBtn" disabled>▶ 재생</button>
+            <button id="stopBtn" disabled>■ 정지</button>
+        </div>
 
-    <div id="status">MIDI 파일을 선택하세요.</div>
+        <div id="status">MIDI 파일을 선택하세요.</div>
 
-    <div id="sheetWrap">
-        <div id="sheet">
-            <div id="cursor"></div>
+        <div id="sheetWrap">
+            <div id="sheet">
+                <div id="cursor"></div>
+            </div>
+        </div>
+
+        <div class="scrollbar" id="scrollbar">
+            <div class="scrollbar__thumb" id="scrollThumb"></div>
         </div>
     </div>
 
@@ -140,13 +182,15 @@
         const sheet = document.getElementById('sheet');
         const sheetWrap = document.getElementById('sheetWrap');
         const cursor = document.getElementById('cursor');
+        const scrollbar = document.getElementById('scrollbar');
+        const scrollThumb = document.getElementById('scrollThumb');
 
-        const lineWidth = 320;
-        const rowHeight = 240; // 동시노트 6개까지 세로로 안 겹치게 충분히 확보
-        const stackHeight = 32; // 세로 스택 간격 확대
+        const rowHeight = 140;
+        const stackHeight = 32;
         const maxStack = 6;
         const groupGapMs = 30;
         const pixelsPerMs = 0.18;
+        const notePadding = 60;
 
         let currentMidi = null;
         let noteGroups = [];
@@ -157,29 +201,37 @@
         let cursorVisualX = 0;
         let cursorVisualY = 0;
         let scrollVisualY = 0;
+        let customScrollTop = 0;
+        let isDraggingThumb = false;
+        let dragStartX = 0;
+        let dragStartScrollTop = 0;
+        let contentHeight = 520;
+        let maxScrollTop = 0;
 
         let synth = null;
-        function initSampler() {
 
+        function initSampler() {
             synth = new Tone.Sampler({
                 urls: {
-                    "A0": "A0.mp3", "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3",
-                    "A1": "A1.mp3", "C2": "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3",
-                    "A2": "A2.mp3", "C3": "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3",
-                    "A3": "A3.mp3", "C4": "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3",
-                    "A4": "A4.mp3", "C5": "C5.mp3", "D#5": "Ds5.mp3", "F#5": "Fs5.mp3",
-                    "A5": "A5.mp3", "C6": "C6.mp3", "D#6": "Ds6.mp3", "F#6": "Fs6.mp3",
-                    "A6": "A6.mp3", "C7": "C7.mp3", "D#7": "Ds7.mp3", "F#7": "Fs7.mp3",
-                    "A7": "A7.mp3", "C8": "C8.mp3"
+                    A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+                    A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+                    A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+                    A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+                    A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+                    A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+                    A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+                    A7: 'A7.mp3', C8: 'C8.mp3'
                 },
                 release: 4,
-                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                baseUrl: 'https://tonejs.github.io/audio/salamander/',
                 onload: () => {
-                    status.textContent = "✅ 샘플 로딩 완료! MIDI 파일을 선택하세요.";
+                    status.textContent = '✅ 샘플 로딩 완료! MIDI 파일을 선택하세요.';
                 }
             }).toDestination();
         }
+
         initSampler();
+
         function setKeyMap() {
             const keyMap = new Map();
             const keyArray = [
@@ -259,7 +311,8 @@
         function clearSheet() {
             sheet.querySelectorAll('.note').forEach(el => el.remove());
             cursor.style.display = 'none';
-            sheet.style.height = '640px';
+            sheet.style.width = '640px';
+            sheet.style.height = '520px';
         }
 
         function createNote(char, scaledTime, stackIndex) {
@@ -267,24 +320,30 @@
             noteEl.className = 'note';
             noteEl.textContent = char;
 
-            const x = scaledTime % lineWidth;
-            const row = Math.floor(scaledTime / lineWidth);
+            const x = 120 + stackIndex * 54;
+            const y = scaledTime + notePadding;
 
-            // 같은 시간대 노트는 같은 x에 두고 세로로만 쌓기
-            const baseY = row * rowHeight + 110;
-            const y = baseY - stackIndex * stackHeight;
-
-            noteEl.style.left = `${x + 10}px`;
+            noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
 
             sheet.appendChild(noteEl);
-            return { element: noteEl, x: x + 10, y, row };
+            return { element: noteEl, x, y, row: 0 };
         }
 
         function renderGroups(groups) {
             clearSheet();
 
-            let maxRow = 0;
+            let maxScaledTime = 0;
+
+            groups.forEach(group => {
+                const scaledTime = group.timeMs * pixelsPerMs;
+                maxScaledTime = Math.max(maxScaledTime, scaledTime);
+            });
+
+            contentHeight = Math.max(520, maxScaledTime + notePadding * 2 + 320);
+            maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
+            sheet.style.height = `${contentHeight}px`;
+            setScrollTop(0);
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
@@ -296,19 +355,40 @@
                     note.x = rendered.x;
                     note.y = rendered.y;
                     note.row = rendered.row;
-                    maxRow = Math.max(maxRow, rendered.row);
                 });
             });
-
-            sheet.style.height = `${Math.max(640, (maxRow + 2) * rowHeight)}px`;
         }
 
         function getCursorPosition(elapsedMs) {
             const scaledTime = elapsedMs * pixelsPerMs;
-            const x = scaledTime % lineWidth;
-            const row = Math.floor(scaledTime / lineWidth);
-            const y = row * rowHeight + 20;
-            return { x: x + 10, y, row };
+            return { x: 84, y: scaledTime + notePadding, row: 0 };
+        }
+
+        function updateScrollbarThumb() {
+            const trackWidth = scrollbar.clientWidth;
+            if (maxScrollTop <= 0) {
+                scrollThumb.style.width = `${trackWidth}px`;
+                scrollThumb.style.left = `0px`;
+                return;
+            }
+
+            const thumbWidth = Math.max(36, trackWidth * (sheetWrap.clientHeight / contentHeight));
+            const maxThumbLeft = trackWidth - thumbWidth;
+            const thumbLeft = maxThumbLeft * (customScrollTop / maxScrollTop);
+
+            scrollThumb.style.width = `${thumbWidth}px`;
+            scrollThumb.style.left = `${thumbLeft}px`;
+        }
+
+        function setScrollTop(value) {
+            customScrollTop = Math.max(0, Math.min(maxScrollTop, value));
+            sheetWrap.scrollTop = customScrollTop;
+            updateScrollbarThumb();
+        }
+
+        function syncScrollFromViewport() {
+            customScrollTop = sheetWrap.scrollTop;
+            updateScrollbarThumb();
         }
 
         function playGroup(group) {
@@ -319,9 +399,7 @@
             group.notes.forEach(note => {
                 if (note.element) {
                     note.element.classList.add('hit');
-                    setTimeout(() => {
-                        note.element.classList.remove('hit');
-                    }, 180);
+                    setTimeout(() => note.element.classList.remove('hit'), 180);
                 }
             });
         }
@@ -349,9 +427,9 @@
             cursorVisualY += (cursorPos.y - cursorVisualY) * smoothing;
             cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
 
-            const targetScrollTop = Math.max(0, cursorPos.y - sheetWrap.clientHeight / 2);
+            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight - 80));
             scrollVisualY += (targetScrollTop - scrollVisualY) * 0.18;
-            sheetWrap.scrollTop = scrollVisualY;
+            setScrollTop(scrollVisualY);
 
             while (nextGroupIndex < noteGroups.length && elapsedMs >= noteGroups[nextGroupIndex].timeMs) {
                 playGroup(noteGroups[nextGroupIndex]);
@@ -386,11 +464,12 @@
             cursorVisualY = startPos.y;
             scrollVisualY = 0;
             cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
+            setScrollTop(0);
 
             updatePlayback();
         }
 
-        fileInput.addEventListener('change', async (e) => {
+        fileInput.addEventListener('change', async e => {
             const file = e.target.files[0];
             if (!file) return;
 
@@ -415,6 +494,54 @@
         stopBtn.addEventListener('click', () => {
             stopPlayback();
             status.textContent = '정지됨';
+        });
+
+        sheetWrap.addEventListener('scroll', () => {
+            if (!isPlaying) syncScrollFromViewport();
+        });
+
+        scrollbar.addEventListener('pointerdown', e => {
+            const rect = scrollbar.getBoundingClientRect();
+            const thumbRect = scrollThumb.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const thumbLeft = thumbRect.left - rect.left;
+            const thumbRight = thumbLeft + thumbRect.width;
+
+            isDraggingThumb = true;
+            scrollbar.setPointerCapture(e.pointerId);
+
+            if (clickX < thumbLeft || clickX > thumbRight) {
+                const ratio = clickX / rect.width;
+                setScrollTop(ratio * maxScrollTop);
+            }
+
+            dragStartX = e.clientX;
+            dragStartScrollTop = customScrollTop;
+        });
+
+        scrollbar.addEventListener('pointermove', e => {
+            if (!isDraggingThumb) return;
+
+            const rect = scrollbar.getBoundingClientRect();
+            const thumbWidth = scrollThumb.getBoundingClientRect().width;
+            const maxThumbLeft = rect.width - thumbWidth;
+            const deltaX = e.clientX - dragStartX;
+            const nextThumbLeft = Math.max(0, Math.min(maxThumbLeft, ((dragStartScrollTop / Math.max(maxScrollTop, 1)) * maxThumbLeft) + deltaX));
+            const nextScrollTop = maxScrollTop <= 0 ? 0 : (nextThumbLeft / maxThumbLeft) * maxScrollTop;
+            setScrollTop(nextScrollTop);
+        });
+
+        scrollbar.addEventListener('pointerup', () => {
+            isDraggingThumb = false;
+        });
+
+        scrollbar.addEventListener('pointerleave', () => {
+            isDraggingThumb = false;
+        });
+
+        window.addEventListener('resize', () => {
+            maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
+            setScrollTop(Math.min(customScrollTop, maxScrollTop));
         });
     </script>
 </body>
