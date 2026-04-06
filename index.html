@@ -3,91 +3,126 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>MIDI Sheet Cursor Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MIDI Cursor Player</title>
     <script src="https://unpkg.com/tone"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root {
-            --bg: #f5f5f5;
-            --text: #111;
-            --panel: #fff;
-            --border: #222;
-            --note-border: #333;
-            --note-hit: #d5ffd7;
-            --note-hit-border: #148a2b;
-            --cursor: red;
-            --sheet-width: 400px;
+            --bg: #0f1115;
+            --text: #e7e9ee;
+            --panel: #171a21;
+            --border: #6d7480;
+            --note-bg: #222733;
+            --note-text: #f2f5ff;
+            --note-hit: #2f3e2f;
+            --note-hit-border: #7edb8a;
+            --cursor: #ff5a5f;
+            --accent: #8aa4ff;
+            --sheet-width: 760px;
             --sheet-height: 640px;
-            --inner-width: 320px;
-            --row-height: 140px;
-            --line-color: rgba(0, 0, 0, 1);
+            --inner-width: 640px;
+            --scrollbar-w: 14px;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            padding: 24px;
-            font-family: sans-serif;
-            text-align: center;
+            min-height: 100vh;
+            padding: 72px 56px 40px;
+            font-family: Arial, Helvetica, sans-serif;
             color: var(--text);
+            background: var(--bg);
+            text-align: center;
+        }
+
+        .app {
+            max-width: 760px;
+            margin: 0 auto;
         }
 
         h1 {
-            margin: 0 0 12px;
+            margin: 0 0 14px;
             font-size: 28px;
+            font-weight: 700;
         }
 
         .controls {
             display: flex;
             justify-content: center;
             align-items: center;
+            gap: 10px;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
-        button,
-        input {
-            padding: 8px 12px;
+        input[type="file"], button {
             font-size: 14px;
+        }
+
+        input[type="file"], button {
+            color: var(--text);
+            background: #222734;
+            border: 1px solid #3a4150;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        button:disabled {
+            opacity: 0.45;
         }
 
         #status {
-            min-height: 20px;
-            margin: 10px 0 16px;
+            min-height: 22px;
+            margin: 10px 0 18px;
             font-size: 14px;
         }
 
+        .viewer {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            justify-content: center;
+        }
+
         #sheetWrap {
-            width: var(--sheet-width);
+            width: 100%;
             height: var(--sheet-height);
             margin: 0 auto;
-            overflow: auto;
+            overflow: hidden;
             position: relative;
             background: var(--panel);
+            border: 1px solid #2a3040;
+            border-radius: 12px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        #sheetWrap::-webkit-scrollbar {
+            width: 0;
+            height: 0;
         }
 
         #sheet {
-            width: var(--inner-width);
+            width: 240px;
             min-height: var(--sheet-height);
             margin: 0 auto;
             position: relative;
-
         }
 
         .note {
             position: absolute;
-            min-width: 32px;
-            padding: 5px 10px;
-            color: #000;
-            background: #fff;
+            min-width: 34px;
+            padding: 6px 8px;
+            background: var(--note-bg);
+            color: var(--note-text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             font-size: 15px;
-            line-height: 32px;
+            line-height: 1.25;
             text-align: center;
-            white-space: nowrap;
+            white-space: pre-line;
             user-select: none;
             transform: translate(-50%, -50%);
         }
@@ -97,38 +132,80 @@
             border-color: var(--note-hit-border);
         }
 
+        .note.miss {
+            opacity: 0.28;
+        }
+
         #cursor {
             position: absolute;
-            top: 0;
+            bottom: 18px;
             left: 0;
             z-index: 10;
-            display: none;
-            width: 3px;
-            height: 240px;
-            background: linear-gradient(to bottom, rgba(255, 0, 0, 0.15), var(--cursor), rgba(255, 0, 0, 0.15));
+            display: block;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(to right, rgba(255, 90, 95, 0.05), var(--cursor), rgba(255, 90, 95, 0.05));
             transform: translate3d(0, 0, 0);
-            transform-origin: center top;
+            transform-origin: left center;
             pointer-events: none;
             will-change: transform;
-            box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
+            box-shadow: 0 0 12px rgba(255, 90, 95, 0.5);
+        }
+
+        #judgeLine {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 18px;
+            height: 3px;
+            z-index: 12;
+            pointer-events: none;
+            background: linear-gradient(to right, rgba(138, 164, 255, 0.06), #8aa4ff, rgba(255, 90, 95, 0.08));
+            box-shadow: 0 0 10px rgba(138, 164, 255, 0.35);
+        }
+
+        .scrollbar {
+            display: none;
+        }
+
+        .scrollbar__thumb {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            min-height: 36px;
+            background: #394155;
+            border: 1px solid #596275;
+            cursor: grab;
+        }
+
+        .scrollbar__thumb:active {
+            cursor: grabbing;
         }
     </style>
 </head>
 
 <body>
-    <h1>🎹 MIDI Cursor Player</h1>
+    <div class="app">
+        <h1>🎹 MIDI Cursor Player</h1>
 
-    <div class="controls">
-        <input type="file" id="fileInput" accept=".mid,.midi" />
-        <button id="playBtn" disabled>▶ 재생</button>
-        <button id="stopBtn" disabled>■ 정지</button>
-    </div>
+        <div class="controls">
+            <input type="file" id="fileInput" accept=".mid,.midi" />
+            <button id="playBtn" disabled>▶ 재생</button>
+            <button id="stopBtn" disabled>■ 정지</button>
+        </div>
 
-    <div id="status">MIDI 파일을 선택하세요.</div>
+        <div id="status">MIDI 파일을 선택하세요.</div>
 
-    <div id="sheetWrap">
-        <div id="sheet">
-            <div id="cursor"></div>
+        <div class="viewer">
+            <div id="sheetWrap">
+                <div id="sheet">
+                </div>
+                <div id="cursor"></div>
+            </div>
+
+            <div class="scrollbar" id="scrollbar">
+                <div class="scrollbar__thumb" id="scrollThumb"></div>
+            </div>
         </div>
     </div>
 
@@ -140,46 +217,54 @@
         const sheet = document.getElementById('sheet');
         const sheetWrap = document.getElementById('sheetWrap');
         const cursor = document.getElementById('cursor');
+        const scrollbar = document.getElementById('scrollbar');
+        const scrollThumb = document.getElementById('scrollThumb');
 
-        const lineWidth = 320;
-        const rowHeight = 240; // 동시노트 6개까지 세로로 안 겹치게 충분히 확보
-        const stackHeight = 32; // 세로 스택 간격 확대
+        const stackHeight = 32;
         const maxStack = 6;
         const groupGapMs = 30;
-        const pixelsPerMs = 0.18;
+        const pixelsPerMs = 0.14;
+        const notePadding = 50;
+        const judgmentOffset = 18;
+        const judgeTolerancePx = 18;
 
         let currentMidi = null;
         let noteGroups = [];
+        let renderedNotes = [];
         let animationId = null;
         let playStartAt = 0;
         let isPlaying = false;
         let nextGroupIndex = 0;
-        let cursorVisualX = 0;
-        let cursorVisualY = 0;
-        let scrollVisualY = 0;
+        let visualSpeed = 1;
+        const visualSpeedStep = 0.1;
+        const visualSpeedMin = 0.5;
+        const visualSpeedMax = 2.0;
+        const chartLeadPx = 700;
 
         let synth = null;
-        function initSampler() {
 
+        function initSampler() {
             synth = new Tone.Sampler({
                 urls: {
-                    "A0": "A0.mp3", "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3",
-                    "A1": "A1.mp3", "C2": "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3",
-                    "A2": "A2.mp3", "C3": "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3",
-                    "A3": "A3.mp3", "C4": "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3",
-                    "A4": "A4.mp3", "C5": "C5.mp3", "D#5": "Ds5.mp3", "F#5": "Fs5.mp3",
-                    "A5": "A5.mp3", "C6": "C6.mp3", "D#6": "Ds6.mp3", "F#6": "Fs6.mp3",
-                    "A6": "A6.mp3", "C7": "C7.mp3", "D#7": "Ds7.mp3", "F#7": "Fs7.mp3",
-                    "A7": "A7.mp3", "C8": "C8.mp3"
+                    A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+                    A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+                    A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+                    A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+                    A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+                    A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+                    A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+                    A7: 'A7.mp3', C8: 'C8.mp3'
                 },
                 release: 4,
-                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                baseUrl: 'https://tonejs.github.io/audio/salamander/',
                 onload: () => {
-                    status.textContent = "✅ 샘플 로딩 완료! MIDI 파일을 선택하세요.";
+                    status.textContent = '✅ 샘플 로딩 완료! MIDI 파일을 선택하세요.';
                 }
             }).toDestination();
         }
+
         initSampler();
+
         function setKeyMap() {
             const keyMap = new Map();
             const keyArray = [
@@ -258,8 +343,13 @@
 
         function clearSheet() {
             sheet.querySelectorAll('.note').forEach(el => el.remove());
-            cursor.style.display = 'none';
-            sheet.style.height = '640px';
+            renderedNotes = [];
+            sheet.style.width = '240px';
+            sheet.style.height = '1280px';
+        }
+
+        function getJudgmentY() {
+            return sheetWrap.clientHeight - judgmentOffset;
         }
 
         function createNote(char, scaledTime, stackIndex) {
@@ -267,24 +357,20 @@
             noteEl.className = 'note';
             noteEl.textContent = char;
 
-            const x = scaledTime % lineWidth;
-            const row = Math.floor(scaledTime / lineWidth);
+            const x = 28 + stackIndex * 56;
+            const y = getJudgmentY() - (scaledTime * visualSpeed) - chartLeadPx;
 
-            // 같은 시간대 노트는 같은 x에 두고 세로로만 쌓기
-            const baseY = row * rowHeight + 110;
-            const y = baseY - stackIndex * stackHeight;
-
-            noteEl.style.left = `${x + 10}px`;
+            noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
+            noteEl.style.transform = 'translate(-50%, -50%)';
 
             sheet.appendChild(noteEl);
-            return { element: noteEl, x: x + 10, y, row };
+            return { element: noteEl, x, y, row: 0 };
         }
 
         function renderGroups(groups) {
             clearSheet();
-
-            let maxRow = 0;
+            sheet.style.height = '1280px';
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
@@ -296,34 +382,52 @@
                     note.x = rendered.x;
                     note.y = rendered.y;
                     note.row = rendered.row;
-                    maxRow = Math.max(maxRow, rendered.row);
+                    note.hit = false;
+                    note.missed = false;
+                    note.currentY = rendered.y;
+                    renderedNotes.push(note);
                 });
             });
-
-            sheet.style.height = `${Math.max(640, (maxRow + 2) * rowHeight)}px`;
         }
 
         function getCursorPosition(elapsedMs) {
-            const scaledTime = elapsedMs * pixelsPerMs;
-            const x = scaledTime % lineWidth;
-            const row = Math.floor(scaledTime / lineWidth);
-            const y = row * rowHeight + 20;
-            return { x: x + 10, y, row };
+            const y = getJudgmentY() - chartLeadPx + (elapsedMs * pixelsPerMs * visualSpeed);
+            return { x: 0, y, row: 0 };
         }
 
-        function playGroup(group) {
-            const noteNames = group.notes.map(n => n.noteName);
-            const longest = Math.max(...group.notes.map(n => Math.max(120, n.durationMs)));
-            synth.triggerAttackRelease(noteNames, longest / 1000);
+        function triggerNote(note) {
+            synth.triggerAttackRelease(note.noteName, Math.max(0.12, note.durationMs / 1000));
+            note.hit = true;
+            if (note.element) {
+                note.element.classList.add('hit');
+                setTimeout(() => note.element.classList.remove('hit'), 180);
+            }
+        }
 
-            group.notes.forEach(note => {
-                if (note.element) {
-                    note.element.classList.add('hit');
-                    setTimeout(() => {
-                        note.element.classList.remove('hit');
-                    }, 180);
+        function judgeNote(key) {
+            if (!isPlaying) return;
+
+            const elapsedMs = performance.now() - playStartAt;
+            let bestNote = null;
+            let bestDistance = Infinity;
+
+            renderedNotes.forEach(note => {
+                if (note.hit || note.missed) return;
+                if (note.keyChar !== key) return;
+
+                const currentY = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
+                note.currentY = currentY;
+                const distance = Math.abs(currentY - getJudgmentY());
+
+                if (distance <= judgeTolerancePx && distance < bestDistance) {
+                    bestNote = note;
+                    bestDistance = distance;
                 }
             });
+
+            if (bestNote) {
+                triggerNote(bestNote);
+            }
         }
 
         function stopPlayback() {
@@ -331,7 +435,6 @@
             animationId = null;
             isPlaying = false;
             nextGroupIndex = 0;
-            cursor.style.display = 'none';
             playBtn.disabled = !currentMidi;
             stopBtn.disabled = true;
         }
@@ -340,26 +443,31 @@
             if (!isPlaying) return;
 
             const elapsedMs = performance.now() - playStartAt;
-            const cursorPos = getCursorPosition(elapsedMs);
 
             cursor.style.display = 'block';
 
-            const smoothing = 0.28;
-            cursorVisualX += (cursorPos.x - cursorVisualX) * smoothing;
-            cursorVisualY += (cursorPos.y - cursorVisualY) * smoothing;
-            cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
+            renderedNotes.forEach(note => {
+                if (!note.element) return;
+                const y = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
+                note.currentY = y;
+                note.element.style.top = `${y}px`;
+                if (note.hit) {
+                    note.element.classList.add('hit');
+                } else if (note.missed) {
+                    note.element.classList.add('miss');
+                } else {
+                    note.element.classList.remove('hit', 'miss');
+                }
 
-            const targetScrollTop = Math.max(0, cursorPos.y - sheetWrap.clientHeight / 2);
-            scrollVisualY += (targetScrollTop - scrollVisualY) * 0.18;
-            sheetWrap.scrollTop = scrollVisualY;
-
-            while (nextGroupIndex < noteGroups.length && elapsedMs >= noteGroups[nextGroupIndex].timeMs) {
-                playGroup(noteGroups[nextGroupIndex]);
-                nextGroupIndex++;
-            }
+                if (!note.hit && !note.missed && y > getJudgmentY() + judgeTolerancePx) {
+                    note.missed = true;
+                    note.element.classList.add('miss');
+                }
+            });
 
             const lastTimeMs = getLastTimeMs(currentMidi);
-            if (elapsedMs >= lastTimeMs + 500) {
+            const allResolved = renderedNotes.length > 0 && renderedNotes.every(note => note.hit || note.missed);
+            if (allResolved && elapsedMs >= lastTimeMs + 500) {
                 stopPlayback();
                 status.textContent = '재생 완료';
                 return;
@@ -379,18 +487,12 @@
             playStartAt = performance.now();
             playBtn.disabled = true;
             stopBtn.disabled = false;
-            status.textContent = '재생 중... 커서가 닿는 노트를 동시에 재생합니다.';
-
-            const startPos = getCursorPosition(0);
-            cursorVisualX = startPos.x;
-            cursorVisualY = startPos.y;
-            scrollVisualY = 0;
-            cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
+            status.textContent = `재생 중... 속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게 | 키를 눌러 판정`;
 
             updatePlayback();
         }
 
-        fileInput.addEventListener('change', async (e) => {
+        fileInput.addEventListener('change', async e => {
             const file = e.target.files[0];
             if (!file) return;
 
@@ -415,6 +517,29 @@
         stopBtn.addEventListener('click', () => {
             stopPlayback();
             status.textContent = '정지됨';
+        });
+
+        window.addEventListener('keydown', e => {
+            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+            const key = e.key;
+
+            if (key === '1') {
+                visualSpeed = Math.max(visualSpeedMin, +(visualSpeed - visualSpeedStep).toFixed(1));
+                status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+                return;
+            }
+
+            if (key === '2') {
+                visualSpeed = Math.min(visualSpeedMax, +(visualSpeed + visualSpeedStep).toFixed(1));
+                status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+                return;
+            }
+
+            if (!isPlaying) return;
+
+            void Tone.start();
+            judgeNote(key);
         });
     </script>
 </body>
