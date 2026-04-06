@@ -75,8 +75,7 @@
             width: 100%;
             height: var(--sheet-height);
             margin: 0 auto;
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: hidden;
             position: relative;
             background: var(--panel);
             scrollbar-width: none;
@@ -117,8 +116,8 @@
         }
 
         #cursor {
-            position: sticky;
-            bottom: 12px;
+            position: absolute;
+            bottom: 18px;
             left: 0;
             z-index: 10;
             display: none;
@@ -133,12 +132,7 @@
         }
 
         .scrollbar {
-            width: var(--scrollbar-w);
-            height: var(--sheet-height);
-            background: #ececec;
-            border: 1px solid #c9c9c9;
-            position: relative;
-            user-select: none;
+            display: none;
         }
 
         .scrollbar__thumb {
@@ -193,29 +187,20 @@
         const scrollbar = document.getElementById('scrollbar');
         const scrollThumb = document.getElementById('scrollThumb');
 
-        const lineWidth = 170;
-        const rowHeight = 120;
         const stackHeight = 32;
         const maxStack = 6;
         const groupGapMs = 30;
         const pixelsPerMs = 0.18;
         const notePadding = 50;
+        const judgmentOffset = 18;
 
         let currentMidi = null;
         let noteGroups = [];
+        let renderedNotes = [];
         let animationId = null;
         let playStartAt = 0;
         let isPlaying = false;
         let nextGroupIndex = 0;
-        let cursorVisualX = 0;
-        let cursorVisualY = 0;
-        let scrollVisualY = 0;
-        let customScrollTop = 0;
-        let isDraggingThumb = false;
-        let dragStartY = 0;
-        let dragStartScrollTop = 0;
-        let contentHeight = 320;
-        let maxScrollTop = 0;
 
         let synth = null;
 
@@ -320,8 +305,13 @@
         function clearSheet() {
             sheet.querySelectorAll('.note').forEach(el => el.remove());
             cursor.style.display = 'none';
-            sheet.style.width = '640px';
+            renderedNotes = [];
+            sheet.style.width = '240px';
             sheet.style.height = '320px';
+        }
+
+        function getJudgmentY() {
+            return sheetWrap.clientHeight - judgmentOffset;
         }
 
         function createNote(char, scaledTime, stackIndex) {
@@ -330,10 +320,11 @@
             noteEl.textContent = char;
 
             const x = 28 + stackIndex * 56;
-            const y = scaledTime + notePadding;
+            const y = getJudgmentY() - scaledTime;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
+            noteEl.style.transform = 'translate(-50%, -50%)';
 
             sheet.appendChild(noteEl);
             return { element: noteEl, x, y, row: 0 };
@@ -341,18 +332,7 @@
 
         function renderGroups(groups) {
             clearSheet();
-
-            let maxScaledTime = 0;
-
-            groups.forEach(group => {
-                const scaledTime = group.timeMs * pixelsPerMs;
-                maxScaledTime = Math.max(maxScaledTime, scaledTime);
-            });
-
-            contentHeight = Math.max(320, maxScaledTime + notePadding * 2 + 220);
-            maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
-            sheet.style.height = `${contentHeight}px`;
-            setScrollTop(0);
+            sheet.style.height = `${sheetWrap.clientHeight}px`;
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
@@ -364,40 +344,14 @@
                     note.x = rendered.x;
                     note.y = rendered.y;
                     note.row = rendered.row;
+                    renderedNotes.push(note);
                 });
             });
         }
 
         function getCursorPosition(elapsedMs) {
             const scaledTime = elapsedMs * pixelsPerMs;
-            return { x: 0, y: scaledTime + notePadding, row: 0 };
-        }
-
-        function updateScrollbarThumb() {
-            const trackHeight = scrollbar.clientHeight;
-            if (maxScrollTop <= 0) {
-                scrollThumb.style.height = `${trackHeight}px`;
-                scrollThumb.style.top = `0px`;
-                return;
-            }
-
-            const thumbHeight = Math.max(36, trackHeight * (sheetWrap.clientHeight / contentHeight));
-            const maxThumbTop = trackHeight - thumbHeight;
-            const thumbTop = maxThumbTop * (customScrollTop / maxScrollTop);
-
-            scrollThumb.style.height = `${thumbHeight}px`;
-            scrollThumb.style.top = `${thumbTop}px`;
-        }
-
-        function setScrollTop(value) {
-            customScrollTop = Math.max(0, Math.min(maxScrollTop, value));
-            sheetWrap.scrollTop = customScrollTop;
-            updateScrollbarThumb();
-        }
-
-        function syncScrollFromViewport() {
-            customScrollTop = sheetWrap.scrollTop;
-            updateScrollbarThumb();
+            return { x: 0, y: getJudgmentY() - scaledTime, row: 0 };
         }
 
         function playGroup(group) {
@@ -427,13 +381,18 @@
             if (!isPlaying) return;
 
             const elapsedMs = performance.now() - playStartAt;
-            const cursorPos = getCursorPosition(elapsedMs);
+            const travelPx = elapsedMs * pixelsPerMs;
 
             cursor.style.display = 'block';
 
-            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight - 28));
-            scrollVisualY += (targetScrollTop - scrollVisualY) * 0.18;
-            setScrollTop(scrollVisualY);
+            renderedNotes.forEach(note => {
+                if (!note.element) return;
+                const y = getJudgmentY() - (note.timeMs * pixelsPerMs) + travelPx;
+                note.element.style.transform = `translate(-50%, -50%) translateY(${travelPx}px)`;
+                note.element.style.top = `${getJudgmentY() - (note.timeMs * pixelsPerMs)}px`;
+                note.element.style.left = `${note.element.style.left}`;
+                note.element.dataset.y = String(y);
+            });
 
             while (nextGroupIndex < noteGroups.length && elapsedMs >= noteGroups[nextGroupIndex].timeMs) {
                 playGroup(noteGroups[nextGroupIndex]);
@@ -463,9 +422,6 @@
             stopBtn.disabled = false;
             status.textContent = '재생 중... 커서가 닿는 노트를 동시에 재생합니다.';
 
-            scrollVisualY = 0;
-            setScrollTop(0);
-
             updatePlayback();
         }
 
@@ -494,54 +450,6 @@
         stopBtn.addEventListener('click', () => {
             stopPlayback();
             status.textContent = '정지됨';
-        });
-
-        sheetWrap.addEventListener('scroll', () => {
-            if (!isPlaying) syncScrollFromViewport();
-        });
-
-        scrollbar.addEventListener('pointerdown', e => {
-            const rect = scrollbar.getBoundingClientRect();
-            const thumbRect = scrollThumb.getBoundingClientRect();
-            const clickY = e.clientY - rect.top;
-            const thumbTop = thumbRect.top - rect.top;
-            const thumbBottom = thumbTop + thumbRect.height;
-
-            isDraggingThumb = true;
-            scrollbar.setPointerCapture(e.pointerId);
-
-            if (clickY < thumbTop || clickY > thumbBottom) {
-                const ratio = clickY / rect.height;
-                setScrollTop(ratio * maxScrollTop);
-            }
-
-            dragStartY = e.clientY;
-            dragStartScrollTop = customScrollTop;
-        });
-
-        scrollbar.addEventListener('pointermove', e => {
-            if (!isDraggingThumb) return;
-
-            const rect = scrollbar.getBoundingClientRect();
-            const thumbHeight = scrollThumb.getBoundingClientRect().height;
-            const maxThumbTop = rect.height - thumbHeight;
-            const deltaY = e.clientY - dragStartY;
-            const nextThumbTop = Math.max(0, Math.min(maxThumbTop, ((dragStartScrollTop / Math.max(maxScrollTop, 1)) * maxThumbTop) + deltaY));
-            const nextScrollTop = maxScrollTop <= 0 ? 0 : (nextThumbTop / maxThumbTop) * maxScrollTop;
-            setScrollTop(nextScrollTop);
-        });
-
-        scrollbar.addEventListener('pointerup', () => {
-            isDraggingThumb = false;
-        });
-
-        scrollbar.addEventListener('pointerleave', () => {
-            isDraggingThumb = false;
-        });
-
-        window.addEventListener('resize', () => {
-            maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
-            setScrollTop(Math.min(customScrollTop, maxScrollTop));
         });
     </script>
 </body>
