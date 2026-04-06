@@ -199,6 +199,7 @@
             <select id="projectMidiSelect" aria-label="프로젝트 MIDI 선택">
                 <option value="test1.mid">test1.mid</option>
                 <option value="test2.mid">test2.mid</option>
+                <option value="test3.mid">test3.mid</option>
             </select>
             <button id="loadProjectBtn">프로젝트 불러오기</button>
             <button id="playBtn" disabled>▶ 재생</button>
@@ -378,14 +379,18 @@
             status.textContent = `로딩 완료 | ${sourceName} | 노트 ${noteQueue.length}개 | 길이 ${sec}초`;
         }
 
-        async function loadProjectMidi(path) {
-            const response = await fetch(path);
+        async function loadMidiFromUrl(path, label) {
+            const resolvedUrl = new URL(path, document.baseURI).href;
+            const response = await fetch(resolvedUrl, { cache: 'no-store' });
             if (!response.ok) {
-                throw new Error(`Failed to load ${path}`);
+                throw new Error(`Failed to load ${label}`);
             }
 
-            const arrayBuffer = await response.arrayBuffer();
-            await loadMidiArrayBuffer(arrayBuffer, path);
+            await loadMidiArrayBuffer(await response.arrayBuffer(), label);
+        }
+
+        async function loadProjectMidi(path) {
+            await loadMidiFromUrl(path, path);
         }
 
         function groupNotesBy30ms(allNotes) {
