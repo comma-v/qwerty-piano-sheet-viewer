@@ -474,6 +474,13 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(20, 120, 190, 540);
 
+            ctx.strokeStyle = 'chartreuse';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(HIT_X, 120);
+            ctx.lineTo(HIT_X, 660);
+            ctx.stroke();
+
             const rowY = canvas.height * 0.38;
             displayGroups.forEach(group => {
                 const groupNotes = group.notes.filter(n => n.active);
