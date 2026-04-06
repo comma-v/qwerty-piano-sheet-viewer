@@ -172,6 +172,21 @@
             box-shadow: 0 0 10px rgba(138, 164, 255, 0.35);
         }
 
+        #keyBeam {
+            position: absolute;
+            left: 50%;
+            bottom: 21px;
+            width: 10px;
+            height: calc(var(--sheet-height) / 8);
+            transform: translateX(-50%);
+            pointer-events: none;
+            z-index: 11;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+            filter: blur(0.2px);
+            opacity: 0.8;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
+        }
+
         .scrollbar {
             display: none;
         }
@@ -215,6 +230,7 @@
                 <div id="sheet">
                 </div>
                 <div id="cursor"></div>
+                <div id="keyBeam"></div>
             </div>
 
             <div class="scrollbar" id="scrollbar">
@@ -233,6 +249,7 @@
         const sheet = document.getElementById('sheet');
         const sheetWrap = document.getElementById('sheetWrap');
         const cursor = document.getElementById('cursor');
+        const keyBeam = document.getElementById('keyBeam');
         const scrollbar = document.getElementById('scrollbar');
         const scrollThumb = document.getElementById('scrollThumb');
 
@@ -265,6 +282,7 @@
         const startY = -40;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
+        let beamTimer = null;
 
         const keyArray = ["1", "!", "2", "@", "3", "4", "$", "5", "%", "6", "^", "7", "8", "*", "9", "(", "0", "q", "Q", "w", "W", "e", "E", "r", "t", "T", "y", "Y", "u", "i", "I", "o", "O", "p", "P", "a", "s", "S", "d", "D", "f", "g", "G", "h", "H", "j", "J", "k", "l", "L", "z", "Z", "x", "c", "C", "v", "V", "b", "B", "n", "m", "M"];
         const keyboardLayouts = new Map();
@@ -558,6 +576,13 @@
             cursor.classList.add('flash');
             judgeFlashTimer = setTimeout(() => {
                 cursor.classList.remove('flash');
+            }, 120);
+
+            clearTimeout(beamTimer);
+            keyBeam.style.opacity = '1';
+            keyBeam.style.height = 'calc(var(--sheet-height) / 8)';
+            beamTimer = setTimeout(() => {
+                keyBeam.style.opacity = '0.8';
             }, 120);
         }
 
