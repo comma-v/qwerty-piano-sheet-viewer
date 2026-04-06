@@ -301,6 +301,7 @@
 
         const GROUP_WINDOW_SEC = 0.03;
         const GROUP_OVERLAP_SEC = 0.03;
+        const EARLY_HIT_SEC = 0.15;
 
         function groupNotesForDisplay(sourceNotes) {
             if (sourceNotes.length === 0) return [];
@@ -418,7 +419,7 @@
 
         function getRequiredNote() {
             const candidates = notes
-                .filter(n => n.active && Math.abs(n.time - gameTime) < GROUP_WINDOW_SEC)
+                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
             if (candidates.length === 0) return [];
