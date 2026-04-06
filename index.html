@@ -404,7 +404,10 @@
                 .filter(n => n.active && Math.abs(gameTime - n.time) < 0.25)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
-            return candidates[0] || null;
+            if (candidates.length === 0) return [];
+
+            const head = candidates[0];
+            return candidates.filter(n => Math.abs(n.time - head.time) < 0.03);
         }
 
         function processManualKey(key) {
@@ -413,17 +416,15 @@
             const pressedMidi = KEY_TO_MIDI[key];
             if (pressedMidi === undefined) return;
 
-            const required = getRequiredNote();
-            if (!required) return;
+            const requiredGroup = getRequiredNote();
+            if (requiredGroup.length === 0) return;
 
-            const target = notes.find(n =>
+            const target = requiredGroup.find(n =>
                 n.active &&
-                n.midi === pressedMidi &&
-                n.time === required.time &&
-                n.char === required.char
+                n.midi === pressedMidi
             );
 
-            if (target && target === required) {
+            if (target) {
                 triggerNote(target);
                 showJudgment("ACCURATE", "#1e293b");
             }
