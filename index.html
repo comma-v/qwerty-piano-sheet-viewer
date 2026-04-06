@@ -611,9 +611,6 @@
                 return;
             }
 
-            if (activeNotes.length > 0) {
-                pausePlayback();
-            }
             showFeedback('miss');
         }
 
@@ -708,9 +705,11 @@
             if (!isPlaying) return;
 
             if (isPaused) {
-                resumePlayback();
-                renderPlaybackFrame(getCurrentTimeMs());
-                if (activeNotes.length === 0) return;
+                if (key !== '1' && key !== '2') {
+                    resumePlayback();
+                    renderPlaybackFrame(getCurrentTimeMs());
+                    return;
+                }
             }
 
             void Tone.start();
