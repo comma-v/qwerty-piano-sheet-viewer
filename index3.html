@@ -2,7 +2,6 @@
 <html lang="ko">
 
 <head>
-    <!-- commit 테스트 -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MIDI Cursor Player</title>
@@ -90,7 +89,7 @@
         }
 
         #sheet {
-            width: var(--inner-width);
+            width: 240px;
             min-height: var(--sheet-height);
             margin: 0 auto;
             position: relative;
@@ -123,11 +122,11 @@
             left: 0;
             z-index: 10;
             display: none;
-            width: 3px;
-            height: 220px;
-            background: linear-gradient(to bottom, rgba(255, 0, 0, 0.15), var(--cursor), rgba(255, 0, 0, 0.15));
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, rgba(255, 0, 0, 0.15), var(--cursor), rgba(255, 0, 0, 0.15));
             transform: translate3d(0, 0, 0);
-            transform-origin: center top;
+            transform-origin: left center;
             pointer-events: none;
             will-change: transform;
             box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
@@ -330,27 +329,27 @@
             noteEl.className = 'note';
             noteEl.textContent = char;
 
-            const x = (scaledTime % lineWidth) + 40;
-            const y = 70 + Math.floor(scaledTime / lineWidth) * rowHeight + stackIndex * 0;
+            const x = 28 + stackIndex * 56;
+            const y = scaledTime + notePadding;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
 
             sheet.appendChild(noteEl);
-            return { element: noteEl, x, y, row: Math.floor(scaledTime / lineWidth) };
+            return { element: noteEl, x, y, row: 0 };
         }
 
         function renderGroups(groups) {
             clearSheet();
 
-            let maxRow = 0;
+            let maxScaledTime = 0;
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
-                maxRow = Math.max(maxRow, Math.floor(scaledTime / lineWidth));
+                maxScaledTime = Math.max(maxScaledTime, scaledTime);
             });
 
-            contentHeight = Math.max(320, (maxRow + 3) * rowHeight);
+            contentHeight = Math.max(320, maxScaledTime + notePadding * 2 + 220);
             maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
             sheet.style.height = `${contentHeight}px`;
             setScrollTop(0);
@@ -371,7 +370,7 @@
 
         function getCursorPosition(elapsedMs) {
             const scaledTime = elapsedMs * pixelsPerMs;
-            return { x: (scaledTime % lineWidth) + 40, y: 70 + Math.floor(scaledTime / lineWidth) * rowHeight, row: Math.floor(scaledTime / lineWidth) };
+            return { x: 0, y: scaledTime + notePadding, row: 0 };
         }
 
         function updateScrollbarThumb() {
@@ -437,7 +436,7 @@
             cursorVisualY += (cursorPos.y - cursorVisualY) * smoothing;
             cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
 
-            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight - 80));
+            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight * 0.4));
             scrollVisualY += (targetScrollTop - scrollVisualY) * 0.18;
             setScrollTop(scrollVisualY);
 
