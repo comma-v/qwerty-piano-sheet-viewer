@@ -250,7 +250,7 @@
         const visualSpeedMin = 0.5;
         const visualSpeedMax = 2.0;
         const chartLeadPx = 700;
-        const keyboardWidth = 760;
+        const keyboardWidth = 620;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
 
@@ -270,10 +270,10 @@
         ].forEach(([key, row, col]) => keyboardLayouts.set(key, { row, col }));
 
         const rowSpecs = [
-            { start: 28, step: 58 },
-            { start: 18, step: 58 },
-            { start: 48, step: 58 },
-            { start: 80, step: 58 }
+            { start: 161, step: 42 },
+            { start: 161, step: 42 },
+            { start: 182, step: 42 },
+            { start: 224, step: 42 }
         ];
 
         let synth = null;
