@@ -399,19 +399,31 @@
             }
         }
 
+        function getRequiredNote() {
+            const candidates = notes
+                .filter(n => n.active && Math.abs(gameTime - n.time) < 0.25)
+                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
+
+            return candidates[0] || null;
+        }
+
         function processManualKey(key) {
             if (!isPlaying) return;
 
             const pressedMidi = KEY_TO_MIDI[key];
             if (pressedMidi === undefined) return;
 
+            const required = getRequiredNote();
+            if (!required) return;
+
             const target = notes.find(n =>
                 n.active &&
                 n.midi === pressedMidi &&
-                Math.abs(gameTime - n.time) < 0.25
+                n.time === required.time &&
+                n.char === required.char
             );
 
-            if (target) {
+            if (target && target === required) {
                 triggerNote(target);
                 showJudgment("ACCURATE", "#1e293b");
             }
