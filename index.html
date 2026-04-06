@@ -300,6 +300,7 @@
         });
 
         const GROUP_WINDOW_SEC = 0.06;
+        const GROUP_OVERLAP_SEC = 0.04;
 
         function groupNotesForDisplay(sourceNotes) {
             if (sourceNotes.length === 0) return [];
@@ -310,7 +311,9 @@
 
             for (let i = 1; i < sourceNotes.length; i++) {
                 const note = sourceNotes[i];
-                if (Math.abs(note.time - groupStartTime) < GROUP_WINDOW_SEC) {
+                const sameTime = Math.abs(note.time - groupStartTime) < GROUP_WINDOW_SEC;
+                const sameGroupKey = note.char === currentGroup[currentGroup.length - 1].char;
+                if (sameTime || sameGroupKey || Math.abs(note.time - currentGroup[currentGroup.length - 1].time) < GROUP_OVERLAP_SEC) {
                     currentGroup.push(note);
                 } else {
                     groups.push({ time: groupStartTime, notes: currentGroup });
@@ -481,7 +484,7 @@
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
-                ctx.fillStyle = 'rgba(127, 255, 0, 0.02)';
+                ctx.fillStyle = 'rgba(127, 255, 0, 0.00)';
                 ctx.strokeStyle = '#111111';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
