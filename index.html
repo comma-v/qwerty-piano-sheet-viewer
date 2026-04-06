@@ -460,14 +460,13 @@
                 });
                 rows.forEach(row => row.sort((a, b) => getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)));
 
-                const usedRows = rows.filter(row => row.length > 0);
                 const widestRow = Math.max(...rows.map(row => row.length), 1);
                 const boxWidth = Math.max(168, (28 + widestRow * 10) * 4);
-                const boxHeight = Math.max(144, (16 + usedRows.length * 16) * 4);
+                const boxHeight = Math.max(144, (16 + 4 * 16) * 4);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
-                ctx.fillStyle = 'rgba(127, 255, 0, 0.08)';
+                ctx.fillStyle = 'rgba(127, 255, 0, 0.02)';
                 ctx.strokeStyle = '#111111';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -475,14 +474,14 @@
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.font = 'bold 14px monospace';
+                ctx.font = 'bold 34px monospace';
                 ctx.textAlign = 'left';
 
                 rows.forEach((row, rowIdx) => {
                     row.forEach((note, idx) => {
-                        const textX = groupX + 6 + (idx * 9);
-                        const textY = rowY + 16 + (rowIdx * 16);
-                        ctx.lineWidth = 3;
+                        const textX = groupX + 10 + (idx * 24);
+                        const textY = rowY + 42 + (rowIdx * 34);
+                        ctx.lineWidth = 2;
                         ctx.strokeStyle = '#111111';
                         ctx.strokeText(note.char, textX, textY);
                         ctx.fillStyle = '#111111';
