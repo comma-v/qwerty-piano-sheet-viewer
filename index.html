@@ -273,6 +273,10 @@
             if (!keyOrderMap.has(key)) keyOrderMap.set(key, index);
             keyboardLayouts.set(key, { order: index });
         });
+        const keySoundMap = new Map();
+        keyArray.forEach((key, index) => {
+            if (!keySoundMap.has(key)) keySoundMap.set(key, 36 + index);
+        });
         const keyStep = 9;
         const keyStart = 20;
 
@@ -557,6 +561,14 @@
             }, 120);
         }
 
+        function playKeySound(key) {
+            const midi = keySoundMap.get(key);
+            if (midi == null) return;
+
+            const noteName = Tone.Frequency(midi, 'midi').toNote();
+            synth.triggerAttackRelease(noteName, 0.12);
+        }
+
         function showFeedback(message) {
             clearTimeout(feedbackTimer);
             status.textContent = message;
@@ -608,6 +620,10 @@
                 triggerNote(bestNote);
                 activeNotes = activeNotes.filter(note => note !== bestNote);
                 showFeedback('PERPECT!!');
+                return;
+            }
+
+            if (activeNotes.length === 0) {
                 return;
             }
 
@@ -710,6 +726,9 @@
 
             if (!isPlaying) return;
 
+            void Tone.start();
+            playKeySound(key);
+
             if (isPaused) {
                 if (key !== '1' && key !== '2') {
                     resumePlayback();
@@ -717,7 +736,6 @@
                 }
             }
 
-            void Tone.start();
             judgeNote(key);
         });
     </script>
