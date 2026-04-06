@@ -496,7 +496,8 @@
                 rows.forEach(row => row.sort((a, b) => getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)));
 
                 const widestRow = Math.max(...rows.map(row => row.length), 1);
-                const boxWidth = Math.max(160, (24 + widestRow * 12) * 4);
+                const letterStep = 21;
+                const boxWidth = Math.max(160, (24 + widestRow * letterStep) * 4);
                 const boxHeight = Math.max(144, (16 + 4 * 16) * 4);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
@@ -513,9 +514,8 @@
                 ctx.textAlign = 'left';
 
                 rows.forEach((row, rowIdx) => {
-                    const cellWidth = Math.max(18, Math.floor((boxWidth - 24) / Math.max(row.length, 1)));
                     row.forEach((note, idx) => {
-                        const textX = groupX + 8 + (idx * cellWidth);
+                        const textX = groupX + 8 + (idx * letterStep);
                         const textY = rowY + 44 + (rowIdx * 42);
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = '#111111';
