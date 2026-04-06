@@ -373,6 +373,22 @@
             return groups;
         }
 
+        function getKeyRow(key) {
+            const index = keyArray.indexOf(key);
+            if (index <= 16) return 0;
+            if (index <= 35) return 1;
+            if (index <= 49) return 2;
+            return 3;
+        }
+
+        function getKeyOrderInRow(key) {
+            const index = keyArray.indexOf(key);
+            if (index <= 16) return index;
+            if (index <= 35) return index - 17;
+            if (index <= 49) return index - 36;
+            return index - 50;
+        }
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -495,8 +511,16 @@
                 if (groupNotes.length === 0) return;
 
                 const groupX = HIT_X + (group.time - gameTime) * SPEED;
-                const boxWidth = Math.max(38, 36 + groupNotes.length * 12);
-                const boxHeight = Math.max(34, 18 + groupNotes.length * 18);
+                const rows = [[], [], [], []];
+                groupNotes.forEach(note => {
+                    rows[getKeyRow(note.char)].push(note);
+                });
+                rows.forEach(row => row.sort((a, b) => getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)));
+
+                const usedRows = rows.filter(row => row.length > 0);
+                const widestRow = Math.max(...rows.map(row => row.length), 1);
+                const boxWidth = Math.max(42, 24 + widestRow * 12);
+                const boxHeight = Math.max(36, 18 + usedRows.length * 14);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
@@ -512,8 +536,10 @@
                 ctx.font = 'bold 14px monospace';
                 ctx.textAlign = 'left';
 
-                groupNotes.forEach((note, idx) => {
-                    ctx.fillText(note.char, groupX + 6, rowY + 16 + (idx * 16));
+                rows.forEach((row, rowIdx) => {
+                    row.forEach((note, idx) => {
+                        ctx.fillText(note.char, groupX + 6 + (idx * 10), rowY + 16 + (rowIdx * 14));
+                    });
                 });
             });
 
