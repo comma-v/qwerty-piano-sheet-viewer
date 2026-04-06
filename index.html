@@ -534,6 +534,19 @@
                 sheet.appendChild(noteEl);
                 activeNotes.push(spawnedNote);
             });
+
+            updateKeyBeam();
+        }
+
+        function updateKeyBeam() {
+            if (activeNotes.length === 0) {
+                keyBeam.style.opacity = '0';
+                return;
+            }
+
+            const centerX = activeNotes.reduce((sum, note) => sum + (note.x ?? 0), 0) / activeNotes.length;
+            keyBeam.style.left = `${centerX}px`;
+            keyBeam.style.opacity = '0.8';
         }
 
         function renderPlaybackFrame(currentTimeMs) {
@@ -553,13 +566,11 @@
 
                 if (y >= targetY && !note.locked) {
                     note.locked = true;
-                    setTimeout(() => {
-                        if (!note.hit && note.element) {
-                            pausePlayback();
-                        }
-                    }, judgeHoldMs);
+                    pausePlayback();
                 }
             });
+
+            updateKeyBeam();
         }
 
         function triggerNote(note) {
