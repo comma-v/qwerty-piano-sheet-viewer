@@ -2,6 +2,7 @@
 <html lang="ko">
 
 <head>
+    <!-- commit 테스트 -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MIDI Cursor Player</title>
@@ -17,9 +18,9 @@
             --note-hit-border: #148a2b;
             --cursor: red;
             --sheet-width: 760px;
-            --sheet-height: 520px;
+            --sheet-height: 320px;
             --inner-width: 640px;
-            --scrollbar-h: 14px;
+            --scrollbar-w: 14px;
         }
 
         * { box-sizing: border-box; }
@@ -62,6 +63,13 @@
             min-height: 22px;
             margin: 10px 0 18px;
             font-size: 14px;
+        }
+
+        .viewer {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            justify-content: center;
         }
 
         #sheetWrap {
@@ -126,9 +134,8 @@
         }
 
         .scrollbar {
-            width: 100%;
-            height: var(--scrollbar-h);
-            margin-top: 10px;
+            width: var(--scrollbar-w);
+            height: var(--sheet-height);
             background: #ececec;
             border: 1px solid #c9c9c9;
             position: relative;
@@ -137,9 +144,9 @@
 
         .scrollbar__thumb {
             position: absolute;
-            top: 0;
-            height: 100%;
-            min-width: 36px;
+            left: 0;
+            width: 100%;
+            min-height: 36px;
             background: #bdbdbd;
             border: 1px solid #8b8b8b;
             cursor: grab;
@@ -163,14 +170,16 @@
 
         <div id="status">MIDI 파일을 선택하세요.</div>
 
-        <div id="sheetWrap">
-            <div id="sheet">
-                <div id="cursor"></div>
+        <div class="viewer">
+            <div id="sheetWrap">
+                <div id="sheet">
+                    <div id="cursor"></div>
+                </div>
             </div>
-        </div>
 
-        <div class="scrollbar" id="scrollbar">
-            <div class="scrollbar__thumb" id="scrollThumb"></div>
+            <div class="scrollbar" id="scrollbar">
+                <div class="scrollbar__thumb" id="scrollThumb"></div>
+            </div>
         </div>
     </div>
 
@@ -185,12 +194,13 @@
         const scrollbar = document.getElementById('scrollbar');
         const scrollThumb = document.getElementById('scrollThumb');
 
-        const rowHeight = 140;
+        const lineWidth = 170;
+        const rowHeight = 120;
         const stackHeight = 32;
         const maxStack = 6;
         const groupGapMs = 30;
         const pixelsPerMs = 0.18;
-        const notePadding = 60;
+        const notePadding = 50;
 
         let currentMidi = null;
         let noteGroups = [];
@@ -203,9 +213,9 @@
         let scrollVisualY = 0;
         let customScrollTop = 0;
         let isDraggingThumb = false;
-        let dragStartX = 0;
+        let dragStartY = 0;
         let dragStartScrollTop = 0;
-        let contentHeight = 520;
+        let contentHeight = 320;
         let maxScrollTop = 0;
 
         let synth = null;
@@ -312,7 +322,7 @@
             sheet.querySelectorAll('.note').forEach(el => el.remove());
             cursor.style.display = 'none';
             sheet.style.width = '640px';
-            sheet.style.height = '520px';
+            sheet.style.height = '320px';
         }
 
         function createNote(char, scaledTime, stackIndex) {
@@ -320,27 +330,27 @@
             noteEl.className = 'note';
             noteEl.textContent = char;
 
-            const x = 120 + stackIndex * 54;
-            const y = scaledTime + notePadding;
+            const x = (scaledTime % lineWidth) + 40;
+            const y = 70 + Math.floor(scaledTime / lineWidth) * rowHeight + stackIndex * 0;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
 
             sheet.appendChild(noteEl);
-            return { element: noteEl, x, y, row: 0 };
+            return { element: noteEl, x, y, row: Math.floor(scaledTime / lineWidth) };
         }
 
         function renderGroups(groups) {
             clearSheet();
 
-            let maxScaledTime = 0;
+            let maxRow = 0;
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
-                maxScaledTime = Math.max(maxScaledTime, scaledTime);
+                maxRow = Math.max(maxRow, Math.floor(scaledTime / lineWidth));
             });
 
-            contentHeight = Math.max(520, maxScaledTime + notePadding * 2 + 320);
+            contentHeight = Math.max(320, (maxRow + 3) * rowHeight);
             maxScrollTop = Math.max(0, contentHeight - sheetWrap.clientHeight);
             sheet.style.height = `${contentHeight}px`;
             setScrollTop(0);
@@ -361,23 +371,23 @@
 
         function getCursorPosition(elapsedMs) {
             const scaledTime = elapsedMs * pixelsPerMs;
-            return { x: 84, y: scaledTime + notePadding, row: 0 };
+            return { x: (scaledTime % lineWidth) + 40, y: 70 + Math.floor(scaledTime / lineWidth) * rowHeight, row: Math.floor(scaledTime / lineWidth) };
         }
 
         function updateScrollbarThumb() {
-            const trackWidth = scrollbar.clientWidth;
+            const trackHeight = scrollbar.clientHeight;
             if (maxScrollTop <= 0) {
-                scrollThumb.style.width = `${trackWidth}px`;
-                scrollThumb.style.left = `0px`;
+                scrollThumb.style.height = `${trackHeight}px`;
+                scrollThumb.style.top = `0px`;
                 return;
             }
 
-            const thumbWidth = Math.max(36, trackWidth * (sheetWrap.clientHeight / contentHeight));
-            const maxThumbLeft = trackWidth - thumbWidth;
-            const thumbLeft = maxThumbLeft * (customScrollTop / maxScrollTop);
+            const thumbHeight = Math.max(36, trackHeight * (sheetWrap.clientHeight / contentHeight));
+            const maxThumbTop = trackHeight - thumbHeight;
+            const thumbTop = maxThumbTop * (customScrollTop / maxScrollTop);
 
-            scrollThumb.style.width = `${thumbWidth}px`;
-            scrollThumb.style.left = `${thumbLeft}px`;
+            scrollThumb.style.height = `${thumbHeight}px`;
+            scrollThumb.style.top = `${thumbTop}px`;
         }
 
         function setScrollTop(value) {
@@ -503,19 +513,19 @@
         scrollbar.addEventListener('pointerdown', e => {
             const rect = scrollbar.getBoundingClientRect();
             const thumbRect = scrollThumb.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const thumbLeft = thumbRect.left - rect.left;
-            const thumbRight = thumbLeft + thumbRect.width;
+            const clickY = e.clientY - rect.top;
+            const thumbTop = thumbRect.top - rect.top;
+            const thumbBottom = thumbTop + thumbRect.height;
 
             isDraggingThumb = true;
             scrollbar.setPointerCapture(e.pointerId);
 
-            if (clickX < thumbLeft || clickX > thumbRight) {
-                const ratio = clickX / rect.width;
+            if (clickY < thumbTop || clickY > thumbBottom) {
+                const ratio = clickY / rect.height;
                 setScrollTop(ratio * maxScrollTop);
             }
 
-            dragStartX = e.clientX;
+            dragStartY = e.clientY;
             dragStartScrollTop = customScrollTop;
         });
 
@@ -523,11 +533,11 @@
             if (!isDraggingThumb) return;
 
             const rect = scrollbar.getBoundingClientRect();
-            const thumbWidth = scrollThumb.getBoundingClientRect().width;
-            const maxThumbLeft = rect.width - thumbWidth;
-            const deltaX = e.clientX - dragStartX;
-            const nextThumbLeft = Math.max(0, Math.min(maxThumbLeft, ((dragStartScrollTop / Math.max(maxScrollTop, 1)) * maxThumbLeft) + deltaX));
-            const nextScrollTop = maxScrollTop <= 0 ? 0 : (nextThumbLeft / maxThumbLeft) * maxScrollTop;
+            const thumbHeight = scrollThumb.getBoundingClientRect().height;
+            const maxThumbTop = rect.height - thumbHeight;
+            const deltaY = e.clientY - dragStartY;
+            const nextThumbTop = Math.max(0, Math.min(maxThumbTop, ((dragStartScrollTop / Math.max(maxScrollTop, 1)) * maxThumbTop) + deltaY));
+            const nextScrollTop = maxScrollTop <= 0 ? 0 : (nextThumbTop / maxThumbTop) * maxScrollTop;
             setScrollTop(nextScrollTop);
         });
 
