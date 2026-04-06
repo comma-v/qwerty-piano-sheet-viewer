@@ -95,6 +95,51 @@
             transform: translateX(-50%) scale(1);
         }
 
+        .key-guides {
+            position: absolute;
+            left: 0;
+            top: 120px;
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .lane-info {
+            height: 100px;
+            width: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 2px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .lane-info .title {
+            font-weight: 900;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .lane-info .keys {
+            font-size: 10px;
+            color: #cbd5e1;
+            font-family: monospace;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .lane-info.active {
+            background: #1e293b;
+            border-right-color: #6366f1;
+        }
+
+        .lane-info.active .title {
+            color: #818cf8;
+        }
     </style>
 </head>
 
@@ -102,6 +147,13 @@
 
     <div id="overlay">
         <div id="judgment" class="judgment-text">PERFECT</div>
+
+        <div class="key-guides" id="key-guides">
+            <div class="lane-info" data-lane="0"><span class="title">ROW 1</span><span class="keys">1~0 !~)</span></div>
+            <div class="lane-info" data-lane="1"><span class="title">ROW 2</span><span class="keys">q~p Q~P</span></div>
+            <div class="lane-info" data-lane="2"><span class="title">ROW 3</span><span class="keys">a~l A~L</span></div>
+            <div class="lane-info" data-lane="3"><span class="title">ROW 4</span><span class="keys">z~m Z~M</span></div>
+        </div>
 
         <div id="controls-panel" class="controls-container">
             <div class="toggle-btn" id="panel-toggle">
@@ -201,7 +253,6 @@
         const OFFSET_Y = 120;
         const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
 
-        // Java key mapping 그대로 적용
         const keyArray = [
             "1", "!", "2", "@", "3", "4", "$", "5", "%", "6", "^", "7", "8", "*", "9", "(",
             "0", "q", "Q", "w", "W", "e", "E", "r", "t", "T", "y", "Y", "u", "i", "I", "o",
@@ -399,14 +450,6 @@
             updateUI();
         }
 
-        function getActiveGroupHeadTime() {
-            const candidates = notes
-                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
-                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
-
-            return candidates.length ? candidates[0].time : null;
-        }
-
         function processSingleStep() {
             if (!isPlaying) return;
 
@@ -425,15 +468,25 @@
             }
         }
 
-        function getRequiredNote() {
+        function getActiveGroupHeadTime() {
             const candidates = notes
-                .filter(n => n.active && Math.abs(n.time - gameTime) < 0.35)
+                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
+                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
+
+            return candidates.length ? candidates[0].time : null;
+        }
+
+        function getRequiredNote() {
+            const headTime = getActiveGroupHeadTime();
+            if (headTime === null) return [];
+
+            const candidates = notes
+                .filter(n => n.active && Math.abs(n.time - headTime) < GROUP_WINDOW_SEC)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
             if (candidates.length === 0) return [];
 
-            const headTime = candidates[0].time;
-            return candidates.filter(n => Math.abs(n.time - headTime) < GROUP_WINDOW_SEC);
+            return candidates;
         }
 
         function processManualKey(key) {
