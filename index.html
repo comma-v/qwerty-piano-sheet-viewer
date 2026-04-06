@@ -239,13 +239,13 @@
         let gameTime = 0;
         let lastTimestamp = 0;
         let notes = [];
-        let displayGroups = [];
         let particles = [];
         let score = 0;
         let combo = 0;
         let isWaiting = false;
         let transpose = 0;
         let lastProcessedNoteTime = -1;
+        let displayGroups = [];
 
         const HIT_X = 240;
         const SPEED = 450;
@@ -253,6 +253,7 @@
         const OFFSET_Y = 120;
         const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
 
+        // Java key mapping 그대로 적용
         const keyArray = [
             "1", "!", "2", "@", "3", "4", "$", "5", "%", "6", "^", "7", "8", "*", "9", "(",
             "0", "q", "Q", "w", "W", "e", "E", "r", "t", "T", "y", "Y", "u", "i", "I", "o",
@@ -264,21 +265,21 @@
         const MIDI_TO_KEY = {};
 
         for (let i = 0; i < keyArray.length; i++) {
-            const midi = i + 36;
+            const midi = i + 36; // Java와 동일
             KEY_TO_MIDI[keyArray[i]] = midi;
             MIDI_TO_KEY[midi] = keyArray[i];
         }
 
         function getLaneFromMidi(midi) {
-            if (midi >= 36 && midi <= 51) return 0;
-            if (midi >= 52 && midi <= 67) return 1;
-            if (midi >= 68 && midi <= 83) return 2;
-            return 3;
+            if (midi >= 36 && midi <= 51) return 0; // 1행
+            if (midi >= 52 && midi <= 67) return 1; // 2행
+            if (midi >= 68 && midi <= 83) return 2; // 3행
+            return 3; // 4행
         }
 
         function getNearestMappedMidi(midi) {
             const minMidi = 36;
-            const maxMidi = 36 + keyArray.length - 1;
+            const maxMidi = 36 + keyArray.length - 1; // 97
             return Math.max(minMidi, Math.min(maxMidi, midi));
         }
 
@@ -332,8 +333,8 @@
                         const lane = getLaneFromMidi(mappedMidi);
 
                         notes.push({
-                            sourceMidi: note.midi,
-                            midi: mappedMidi,
+                            sourceMidi: note.midi,     // 원본 MIDI
+                            midi: mappedMidi,          // Java key mapping 범위로 보정된 MIDI
                             time: note.time,
                             duration: note.duration,
                             name: note.name,
@@ -350,10 +351,6 @@
             reader.readAsArrayBuffer(file);
         });
 
-        const GROUP_WINDOW_SEC = 0.001;
-        const GROUP_OVERLAP_SEC = 0.001;
-        const EARLY_HIT_SEC = 0.15;
-
         function groupNotesForDisplay(sourceNotes) {
             if (sourceNotes.length === 0) return [];
 
@@ -363,9 +360,7 @@
 
             for (let i = 1; i < sourceNotes.length; i++) {
                 const note = sourceNotes[i];
-                const sameTime = Math.abs(note.time - groupStartTime) < GROUP_WINDOW_SEC;
-                const sameGroupKey = note.char === currentGroup[currentGroup.length - 1].char;
-                if (sameTime || sameGroupKey || Math.abs(note.time - currentGroup[currentGroup.length - 1].time) < GROUP_OVERLAP_SEC) {
+                if (Math.abs(note.time - groupStartTime) < 0.03) {
                     currentGroup.push(note);
                 } else {
                     groups.push({ time: groupStartTime, notes: currentGroup });
@@ -376,26 +371,6 @@
 
             groups.push({ time: groupStartTime, notes: currentGroup });
             return groups;
-        }
-
-        function getKeyRow(key) {
-            const index = keyArray.indexOf(key);
-            if (index <= 16) return 0;
-            if (index <= 35) return 1;
-            if (index <= 49) return 2;
-            return 3;
-        }
-
-        function getKeyOrderInRow(key) {
-            const index = keyArray.indexOf(key);
-            if (index <= 16) return index;
-            if (index <= 35) return index - 17;
-            if (index <= 49) return index - 36;
-            return index - 50;
-        }
-
-        function displayKeyChar(char) {
-            return char === '0' ? 'θ' : char;
         }
 
         function resize() {
@@ -426,14 +401,6 @@
                     color
                 });
             }
-        }
-
-        function playMappedKeySound(key) {
-            const midi = KEY_TO_MIDI[key];
-            if (midi === undefined) return;
-
-            const noteName = Tone.Frequency(midi + transpose, 'midi').toNote();
-            synth.triggerAttackRelease(noteName, '8n');
         }
 
         function triggerNote(note) {
@@ -468,41 +435,29 @@
             }
         }
 
-        function getActiveGroupHeadTime() {
-            const candidates = notes
-                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
-                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
-
-            return candidates.length ? candidates[0].time : null;
-        }
-
-        function getRequiredNote() {
-            const headTime = getActiveGroupHeadTime();
-            if (headTime === null) return [];
-
-            const candidates = notes
-                .filter(n => n.active && Math.abs(n.time - headTime) < GROUP_WINDOW_SEC)
-                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
-
-            if (candidates.length === 0) return [];
-
-            return candidates;
-        }
-
         function processManualKey(key) {
             if (!isPlaying) return;
 
             const pressedMidi = KEY_TO_MIDI[key];
             if (pressedMidi === undefined) return;
 
-            const requiredGroup = getRequiredNote();
-            if (requiredGroup.length === 0) return;
+            const target = notes.find(n =>
+                n.active &&
+                n.midi === pressedMidi &&
+                Math.abs(gameTime - n.time) < 0.25
+            );
 
-            const target = requiredGroup.find(n => n.active && n.midi === pressedMidi);
+            const lane = getLaneFromMidi(pressedMidi);
 
             if (target) {
                 triggerNote(target);
                 showJudgment("ACCURATE", "#1e293b");
+            }
+
+            const laneEl = document.querySelector(`.lane-info[data-lane="${lane}"]`);
+            if (laneEl) {
+                laneEl.classList.add('active');
+                setTimeout(() => laneEl.classList.remove('active'), 150);
             }
         }
 
@@ -531,59 +486,62 @@
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = 'chartreuse';
-            ctx.fillRect(20, 120, 190, 540);
-            ctx.strokeStyle = '#111111';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(20, 120, 190, 540);
+            for (let i = 0; i < 4; i++) {
+                const y = i * LANE_HEIGHT + OFFSET_Y;
+                ctx.strokeStyle = '#f1f5f9';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, y + LANE_HEIGHT);
+                ctx.lineTo(canvas.width, y + LANE_HEIGHT);
+                ctx.stroke();
 
-            ctx.strokeStyle = 'chartreuse';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(HIT_X, 120);
-            ctx.lineTo(HIT_X, 660);
-            ctx.stroke();
+                const hasActiveInLane = notes.some(
+                    n => n.active && n.lane === i && Math.abs(n.time - gameTime) < 0.01
+                );
 
-            const rowY = canvas.height * 0.38;
+                ctx.strokeStyle = (isPlaying && isWaiting && hasActiveInLane) ? COLORS[i] : '#e2e8f0';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(HIT_X, y + 15);
+                ctx.lineTo(HIT_X, y + 85);
+                ctx.stroke();
+            }
+
             displayGroups.forEach(group => {
                 const groupNotes = group.notes.filter(n => n.active);
                 if (groupNotes.length === 0) return;
 
                 const groupX = HIT_X + (group.time - gameTime) * SPEED;
-                const rows = [[], [], [], []];
-                groupNotes.forEach(note => {
-                    rows[getKeyRow(note.char)].push(note);
-                });
-                rows.forEach(row => row.sort((a, b) => getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)));
+                const ordered = [...groupNotes].sort((a, b) =>
+                    getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)
+                );
 
-                const widestRow = Math.max(...rows.map(row => row.length), 1);
                 const letterStep = 21;
-                const boxWidth = Math.max(160, (24 + widestRow * letterStep) * 4);
-                const boxHeight = Math.max(144, (16 + 4 * 16) * 4);
+                const boxWidth = Math.max(160, 28 + ordered.length * letterStep + 12);
+                const boxHeight = 160;
+                const boxY = canvas.height * 0.38;
 
-                if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
+                if (groupX + boxWidth < 0 || groupX > canvas.width + 100) return;
 
                 ctx.fillStyle = 'rgba(127, 255, 0, 0.00)';
                 ctx.strokeStyle = '#111111';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.rect(groupX, rowY, boxWidth, boxHeight);
+                ctx.rect(groupX, boxY, boxWidth, boxHeight);
                 ctx.fill();
                 ctx.stroke();
 
                 ctx.font = 'bold 30px monospace';
                 ctx.textAlign = 'left';
 
-                rows.forEach((row, rowIdx) => {
-                    row.forEach((note, idx) => {
-                        const textX = groupX + 8 + (idx * letterStep);
-                        const textY = rowY + 44 + (rowIdx * 42);
-                        ctx.lineWidth = 2;
-                        ctx.strokeStyle = '#111111';
-                        ctx.strokeText(displayKeyChar(note.char), textX, textY);
-                        ctx.fillStyle = '#111111';
-                        ctx.fillText(displayKeyChar(note.char), textX, textY);
-                    });
+                ordered.forEach((note, idx) => {
+                    const textX = groupX + 8 + (idx * letterStep);
+                    const textY = boxY + 92;
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#111111';
+                    ctx.strokeText(displayKeyChar(note.char), textX, textY);
+                    ctx.fillStyle = '#111111';
+                    ctx.fillText(displayKeyChar(note.char), textX, textY);
                 });
             });
 
@@ -644,7 +602,6 @@
                 e.preventDefault();
                 processSingleStep();
             } else {
-                playMappedKeySound(e.key);
                 processManualKey(e.key);
             }
         });
