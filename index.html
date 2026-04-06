@@ -113,23 +113,25 @@
 
         .note {
             position: absolute;
-            min-width: 34px;
-            padding: 6px 8px;
-            background: var(--note-bg);
+            min-width: 18px;
+            padding: 0;
+            background: transparent;
             color: var(--note-text);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 15px;
-            line-height: 1.25;
+            border: 0;
+            border-radius: 0;
+            font-size: 17px;
+            line-height: 1;
+            font-weight: 700;
             text-align: center;
             white-space: pre-line;
             user-select: none;
             transform: translate(-50%, -50%);
+            text-shadow: 0 0 6px rgba(242, 245, 255, 0.15);
         }
 
         .note.hit {
-            background: var(--note-hit);
-            border-color: var(--note-hit-border);
+            color: #7edb8a;
+            text-shadow: 0 0 10px rgba(126, 219, 138, 0.65);
         }
 
         .note.miss {
@@ -249,7 +251,7 @@
         let pauseStartedAt = 0;
         let isPlaying = false;
         let isPaused = false;
-        let nextNoteIndex = 0;
+        let nextPatternIndex = 0;
         let activeNotes = [];
         let visualSpeed = 1;
         const visualSpeedStep = 0.1;
@@ -264,27 +266,15 @@
         let feedbackTimer = null;
         let judgeFlashTimer = null;
 
+        const keyArray = ["1", "!", "2", "@", "3", "4", "$", "5", "%", "6", "^", "7", "8", "*", "9", "(", "0", "q", "Q", "w", "W", "e", "E", "r", "t", "T", "y", "Y", "u", "i", "I", "o", "O", "p", "P", "a", "s", "S", "d", "D", "f", "g", "G", "h", "H", "j", "J", "k", "l", "L", "z", "Z", "x", "c", "C", "v", "V", "b", "B", "n", "m", "M"];
         const keyboardLayouts = new Map();
-        [
-            ['1', 0, 0], ['!', 0, 0], ['2', 0, 1], ['@', 0, 1], ['3', 0, 2], ['4', 0, 3],
-            ['$', 0, 3], ['5', 0, 4], ['%', 0, 4], ['6', 0, 5], ['^', 0, 5],
-            ['7', 0, 6], ['8', 0, 7], ['*', 0, 7], ['9', 0, 8], ['(', 0, 8], ['0', 0, 9],
-            ['q', 1, 0], ['Q', 1, 0], ['w', 1, 1], ['W', 1, 1], ['e', 1, 2], ['E', 1, 2],
-            ['r', 1, 3], ['t', 1, 4], ['T', 1, 4], ['y', 1, 5], ['Y', 1, 5], ['u', 1, 6],
-            ['i', 1, 7], ['I', 1, 7], ['o', 1, 8], ['O', 1, 8], ['p', 1, 9], ['P', 1, 9],
-            ['a', 2, 0], ['s', 2, 1], ['S', 2, 1], ['d', 2, 2], ['D', 2, 2], ['f', 2, 3],
-            ['g', 2, 4], ['G', 2, 4], ['h', 2, 5], ['H', 2, 5], ['j', 2, 6], ['J', 2, 6],
-            ['k', 2, 7], ['l', 2, 8], ['L', 2, 8],
-            ['z', 3, 0], ['Z', 3, 0], ['x', 3, 1], ['c', 3, 2], ['C', 3, 2], ['v', 3, 3],
-            ['V', 3, 3], ['b', 3, 4], ['B', 3, 4], ['n', 3, 5], ['m', 3, 6], ['M', 3, 6]
-        ].forEach(([key, row, col]) => keyboardLayouts.set(key, { row, col }));
-
-        const rowSpecs = [
-            { start: 161, step: 42 },
-            { start: 161, step: 42 },
-            { start: 182, step: 42 },
-            { start: 224, step: 42 }
-        ];
+        const keyOrderMap = new Map();
+        keyArray.forEach((key, index) => {
+            if (!keyOrderMap.has(key)) keyOrderMap.set(key, index);
+            keyboardLayouts.set(key, { order: index });
+        });
+        const keyStep = 9;
+        const keyStart = 20;
 
         let synth = null;
 
@@ -312,16 +302,6 @@
 
         function setKeyMap() {
             const keyMap = new Map();
-            const keyArray = [
-                '1', '!', '2', '@', '3', '4', '$', '5', '%', '6', '^',
-                '7', '8', '*', '9', '(', '0',
-                'q', 'Q', 'w', 'W', 'e', 'E', 'r', 't', 'T', 'y', 'Y',
-                'u', 'i', 'I', 'o', 'O', 'p', 'P',
-                'a', 's', 'S', 'd', 'D', 'f', 'g', 'G', 'h', 'H',
-                'j', 'J', 'k', 'l', 'L',
-                'z', 'Z', 'x', 'c', 'C', 'v', 'V', 'b', 'B', 'n', 'm', 'M'
-            ];
-
             for (let i = 0; i < keyArray.length; i++) {
                 keyMap.set(i + 36, keyArray[i]);
             }
@@ -352,6 +332,7 @@
                     allNotes.push({
                         midi: note.midi,
                         keyChar,
+                        orderIndex: keyOrderMap.get(keyChar) ?? 0,
                         timeMs: note.time * 1000,
                         durationMs: note.duration * 1000,
                         noteName: note.name
@@ -428,22 +409,21 @@
         }
 
         function createNote(char) {
-            const layout = keyboardLayouts.get(char) || { row: 1, col: 0 };
+            const orderIndex = keyOrderMap.get(char) ?? 0;
             const noteEl = document.createElement('div');
             noteEl.className = 'note';
             noteEl.textContent = char;
 
-            const spec = rowSpecs[layout.row] || rowSpecs[1];
-            const x = spec.start + layout.col * spec.step;
+            const x = keyStart + (orderIndex * keyStep);
             const y = -40;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
-            noteEl.style.zIndex = String(20 - layout.row);
+            noteEl.style.zIndex = String(200 - orderIndex);
             noteEl.style.transform = 'translate(-50%, -50%)';
 
             sheet.appendChild(noteEl);
-            return { element: noteEl, x, y, row: layout.row, col: layout.col };
+            return { element: noteEl, x, y, orderIndex };
         }
 
         function renderGroups(groups) {
@@ -453,21 +433,17 @@
 
             groups.forEach(group => {
                 const sortedNotes = [...group.notes].sort((a, b) => {
-                    const la = keyboardLayouts.get(a.keyChar) || { row: 1, col: 0 };
-                    const lb = keyboardLayouts.get(b.keyChar) || { row: 1, col: 0 };
-                    return la.row - lb.row || la.col - lb.col;
+                    return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
                 });
 
                 sortedNotes.forEach(note => {
-                    const layout = keyboardLayouts.get(note.keyChar) || { row: 1, col: 0 };
                     noteQueue.push({
                         keyChar: note.keyChar,
                         noteName: note.noteName,
                         durationMs: note.durationMs,
                         timeMs: note.timeMs,
                         spawnTimeMs: Math.max(0, note.timeMs - fallDurationMs),
-                        row: layout.row,
-                        col: layout.col,
+                        orderIndex: note.orderIndex ?? 0,
                         element: null,
                         hit: false,
                         missed: false,
@@ -478,7 +454,7 @@
                 });
             });
 
-            nextNoteIndex = 0;
+            nextPatternIndex = 0;
             activeNotes = [];
         }
 
@@ -487,30 +463,60 @@
             noteEl.className = 'note';
             noteEl.textContent = note.keyChar;
 
-            const spec = rowSpecs[note.row] || rowSpecs[1];
-            note.x = spec.start + note.col * spec.step;
+            note.x = keyStart + (note.orderIndex * keyStep);
             note.y = startY;
             note.spawnedAt = nowMs;
             note.element = noteEl;
 
             noteEl.style.left = `${note.x}px`;
             noteEl.style.top = `${note.y}px`;
-            noteEl.style.zIndex = String(20 - note.row);
+            noteEl.style.zIndex = String(200 - (note.orderIndex ?? 0));
             noteEl.style.transform = 'translate(-50%, -50%)';
 
             sheet.appendChild(noteEl);
             activeNotes.push(note);
         }
 
-        function spawnDueNotes(currentTimeMs) {
-            while (nextNoteIndex < noteQueue.length && noteQueue[nextNoteIndex].spawnTimeMs <= currentTimeMs) {
-                spawnNote(noteQueue[nextNoteIndex], currentTimeMs);
-                nextNoteIndex++;
-            }
+        function spawnNextPattern(currentTimeMs) {
+            if (nextPatternIndex >= noteGroups.length) return;
+
+            const group = noteGroups[nextPatternIndex++];
+            activeNotes = [];
+
+            group.notes.forEach(note => {
+                const orderIndex = note.orderIndex ?? 0;
+                const spawnedNote = {
+                    keyChar: note.keyChar,
+                    noteName: note.noteName,
+                    durationMs: note.durationMs,
+                    orderIndex,
+                    element: null,
+                    hit: false,
+                    missed: false,
+                    spawnedAt: currentTimeMs,
+                    y: startY,
+                    locked: false,
+                };
+
+                const noteEl = document.createElement('div');
+                noteEl.className = 'note';
+                noteEl.textContent = spawnedNote.keyChar;
+                spawnedNote.x = keyStart + (orderIndex * keyStep);
+                noteEl.style.left = `${spawnedNote.x}px`;
+                noteEl.style.top = `${spawnedNote.y}px`;
+                noteEl.style.zIndex = String(200 - orderIndex);
+                noteEl.style.transform = 'translate(-50%, -50%)';
+                spawnedNote.element = noteEl;
+
+                sheet.appendChild(noteEl);
+                activeNotes.push(spawnedNote);
+            });
         }
 
         function renderPlaybackFrame(currentTimeMs) {
-            spawnDueNotes(currentTimeMs);
+            if (activeNotes.length === 0) {
+                spawnNextPattern(currentTimeMs);
+            }
 
             activeNotes.forEach(note => {
                 if (!note.element || note.hit || note.missed) return;
@@ -527,7 +533,6 @@
                     setTimeout(() => {
                         if (!note.hit && note.element) {
                             pausePlayback();
-                            showFeedback('miss');
                         }
                     }, judgeHoldMs);
                 }
@@ -619,7 +624,7 @@
             animationId = null;
             isPlaying = false;
             isPaused = false;
-            nextNoteIndex = 0;
+            nextPatternIndex = 0;
             activeNotes = [];
             pausedMs = 0;
             pauseStartedAt = 0;
@@ -635,7 +640,7 @@
 
             renderPlaybackFrame(getCurrentTimeMs());
 
-            if (nextNoteIndex >= noteQueue.length && activeNotes.length === 0) {
+            if (nextPatternIndex >= noteGroups.length && activeNotes.length === 0) {
                 stopPlayback();
                 status.textContent = '재생 완료';
                 return;
@@ -652,7 +657,7 @@
 
             isPlaying = true;
             isPaused = false;
-            nextNoteIndex = 0;
+            nextPatternIndex = 0;
             activeNotes = [];
             pausedMs = 0;
             pauseStartedAt = 0;
@@ -708,7 +713,6 @@
                 if (key !== '1' && key !== '2') {
                     resumePlayback();
                     renderPlaybackFrame(getCurrentTimeMs());
-                    return;
                 }
             }
 
