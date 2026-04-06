@@ -132,12 +132,16 @@
             border-color: var(--note-hit-border);
         }
 
+        .note.miss {
+            opacity: 0.28;
+        }
+
         #cursor {
             position: absolute;
             bottom: 18px;
             left: 0;
             z-index: 10;
-            display: none;
+            display: block;
             width: 100%;
             height: 3px;
             background: linear-gradient(to right, rgba(255, 90, 95, 0.05), var(--cursor), rgba(255, 90, 95, 0.05));
@@ -222,6 +226,7 @@
         const pixelsPerMs = 0.18;
         const notePadding = 50;
         const judgmentOffset = 18;
+        const judgeTolerancePx = 18;
 
         let currentMidi = null;
         let noteGroups = [];
@@ -338,7 +343,6 @@
 
         function clearSheet() {
             sheet.querySelectorAll('.note').forEach(el => el.remove());
-            cursor.style.display = 'none';
             renderedNotes = [];
             sheet.style.width = '240px';
             sheet.style.height = '1280px';
@@ -378,27 +382,52 @@
                     note.x = rendered.x;
                     note.y = rendered.y;
                     note.row = rendered.row;
+                    note.hit = false;
+                    note.missed = false;
+                    note.currentY = rendered.y;
                     renderedNotes.push(note);
                 });
             });
         }
 
         function getCursorPosition(elapsedMs) {
-            const scaledTime = elapsedMs * pixelsPerMs;
-            return { x: 0, y: getJudgmentY() - (scaledTime * visualSpeed) - chartLeadPx, row: 0 };
+            const y = getJudgmentY() - chartLeadPx + (elapsedMs * pixelsPerMs * visualSpeed);
+            return { x: 0, y, row: 0 };
         }
 
-        function playGroup(group) {
-            const noteNames = group.notes.map(n => n.noteName);
-            const longest = Math.max(...group.notes.map(n => Math.max(120, n.durationMs)));
-            synth.triggerAttackRelease(noteNames, longest / 1000);
+        function triggerNote(note) {
+            synth.triggerAttackRelease(note.noteName, Math.max(0.12, note.durationMs / 1000));
+            note.hit = true;
+            if (note.element) {
+                note.element.classList.add('hit');
+                setTimeout(() => note.element.classList.remove('hit'), 180);
+            }
+        }
 
-            group.notes.forEach(note => {
-                if (note.element) {
-                    note.element.classList.add('hit');
-                    setTimeout(() => note.element.classList.remove('hit'), 180);
+        function judgeNote(key) {
+            if (!isPlaying) return;
+
+            const elapsedMs = performance.now() - playStartAt;
+            let bestNote = null;
+            let bestDistance = Infinity;
+
+            renderedNotes.forEach(note => {
+                if (note.hit || note.missed) return;
+                if (note.keyChar !== key) return;
+
+                const currentY = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
+                note.currentY = currentY;
+                const distance = Math.abs(currentY - getJudgmentY());
+
+                if (distance <= judgeTolerancePx && distance < bestDistance) {
+                    bestNote = note;
+                    bestDistance = distance;
                 }
             });
+
+            if (bestNote) {
+                triggerNote(bestNote);
+            }
         }
 
         function stopPlayback() {
@@ -406,7 +435,6 @@
             animationId = null;
             isPlaying = false;
             nextGroupIndex = 0;
-            cursor.style.display = 'none';
             playBtn.disabled = !currentMidi;
             stopBtn.disabled = true;
         }
@@ -415,26 +443,31 @@
             if (!isPlaying) return;
 
             const elapsedMs = performance.now() - playStartAt;
-            const travelPx = elapsedMs * pixelsPerMs * visualSpeed;
 
             cursor.style.display = 'block';
 
             renderedNotes.forEach(note => {
                 if (!note.element) return;
-                const y = getJudgmentY() - (note.timeMs * pixelsPerMs * visualSpeed) - chartLeadPx + travelPx;
-                note.element.style.transform = `translate(-50%, -50%) translateY(${travelPx}px)`;
-                note.element.style.top = `${getJudgmentY() - (note.timeMs * pixelsPerMs * visualSpeed) - chartLeadPx}px`;
-                note.element.style.left = `${note.element.style.left}`;
-                note.element.dataset.y = String(y);
+                const y = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
+                note.currentY = y;
+                note.element.style.top = `${y}px`;
+                if (note.hit) {
+                    note.element.classList.add('hit');
+                } else if (note.missed) {
+                    note.element.classList.add('miss');
+                } else {
+                    note.element.classList.remove('hit', 'miss');
+                }
+
+                if (!note.hit && !note.missed && y > getJudgmentY() + judgeTolerancePx) {
+                    note.missed = true;
+                    note.element.classList.add('miss');
+                }
             });
 
-            while (nextGroupIndex < noteGroups.length && elapsedMs >= noteGroups[nextGroupIndex].timeMs) {
-                playGroup(noteGroups[nextGroupIndex]);
-                nextGroupIndex++;
-            }
-
             const lastTimeMs = getLastTimeMs(currentMidi);
-            if (elapsedMs >= lastTimeMs + 500) {
+            const allResolved = renderedNotes.length > 0 && renderedNotes.every(note => note.hit || note.missed);
+            if (allResolved && elapsedMs >= lastTimeMs + 500) {
                 stopPlayback();
                 status.textContent = '재생 완료';
                 return;
@@ -454,7 +487,7 @@
             playStartAt = performance.now();
             playBtn.disabled = true;
             stopBtn.disabled = false;
-            status.textContent = `재생 중... 속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+            status.textContent = `재생 중... 속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게 | 키를 눌러 판정`;
 
             updatePlayback();
         }
@@ -489,15 +522,24 @@
         window.addEventListener('keydown', e => {
             if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
 
-            if (e.key === '1') {
+            const key = e.key;
+
+            if (key === '1') {
                 visualSpeed = Math.max(visualSpeedMin, +(visualSpeed - visualSpeedStep).toFixed(1));
                 status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+                return;
             }
 
-            if (e.key === '2') {
+            if (key === '2') {
                 visualSpeed = Math.min(visualSpeedMax, +(visualSpeed + visualSpeedStep).toFixed(1));
                 status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+                return;
             }
+
+            if (!isPlaying) return;
+
+            void Tone.start();
+            judgeNote(key);
         });
     </script>
 </body>
