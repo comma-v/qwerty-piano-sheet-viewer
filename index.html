@@ -257,7 +257,7 @@
         const chartLeadPx = 220;
         const keyboardWidth = 620;
         const fallDurationMs = 1100;
-        const snapDistancePx = 42;
+        const snapDistancePx = 0;
         const judgeHoldMs = 240;
         const startY = -40;
         let feedbackTimer = null;
@@ -520,11 +520,7 @@
                 if (y >= targetY && !note.locked) {
                     note.locked = true;
                     setTimeout(() => {
-                        if (!note.hit && !note.missed && note.element) {
-                            note.missed = true;
-                            note.element.classList.add('miss');
-                            setTimeout(() => note.element.remove(), 140);
-                            activeNotes = activeNotes.filter(item => item !== note);
+                        if (!note.hit && note.element) {
                             pausePlayback();
                             showFeedback('miss');
                         }
@@ -605,13 +601,6 @@
             }
 
             if (bestNote) {
-                bestNote.missed = true;
-                if (bestNote.element) {
-                    const missElement = bestNote.element;
-                    missElement.classList.add('miss');
-                    setTimeout(() => missElement.remove(), 140);
-                }
-                activeNotes = activeNotes.filter(note => note !== bestNote);
                 pausePlayback();
                 showFeedback('miss');
                 return;
