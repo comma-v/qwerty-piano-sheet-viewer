@@ -241,17 +241,21 @@
 
         let currentMidi = null;
         let noteGroups = [];
+        let noteQueue = [];
         let renderedNotes = [];
         let animationId = null;
         let playStartAt = 0;
         let isPlaying = false;
-        let nextGroupIndex = 0;
+        let nextNoteIndex = 0;
+        let activeNote = null;
         let visualSpeed = 1;
         const visualSpeedStep = 0.1;
         const visualSpeedMin = 0.5;
         const visualSpeedMax = 2.0;
-        const chartLeadPx = 700;
+        const chartLeadPx = 220;
         const keyboardWidth = 620;
+        const fallTravelPx = 520;
+        const fallDurationMs = 1100;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
 
@@ -363,11 +367,11 @@
             noteGroups = groupNotesBy30ms(allNotes);
             renderGroups(noteGroups);
 
-            playBtn.disabled = noteGroups.length === 0;
+            playBtn.disabled = noteQueue.length === 0;
             stopBtn.disabled = true;
 
             const sec = (getLastTimeMs(currentMidi) / 1000).toFixed(2);
-            status.textContent = `로딩 완료 | ${sourceName} | 그룹 ${noteGroups.length}개 | 길이 ${sec}초`;
+            status.textContent = `로딩 완료 | ${sourceName} | 노트 ${noteQueue.length}개 | 길이 ${sec}초`;
         }
 
         async function loadProjectMidi(path) {
@@ -414,7 +418,7 @@
             return sheetWrap.clientHeight - judgmentOffset;
         }
 
-        function createNote(char, scaledTime) {
+        function createNote(char) {
             const layout = keyboardLayouts.get(char) || { row: 1, col: 0 };
             const noteEl = document.createElement('div');
             noteEl.className = 'note';
@@ -422,7 +426,7 @@
 
             const spec = rowSpecs[layout.row] || rowSpecs[1];
             const x = spec.start + layout.col * spec.step;
-            const y = getJudgmentY() - (scaledTime * visualSpeed) - chartLeadPx;
+            const y = -40;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
@@ -436,10 +440,9 @@
         function renderGroups(groups) {
             clearSheet();
             sheet.style.height = '1280px';
+            noteQueue = [];
 
             groups.forEach(group => {
-                const scaledTime = group.timeMs * pixelsPerMs;
-
                 const sortedNotes = [...group.notes].sort((a, b) => {
                     const la = keyboardLayouts.get(a.keyChar) || { row: 1, col: 0 };
                     const lb = keyboardLayouts.get(b.keyChar) || { row: 1, col: 0 };
@@ -447,23 +450,50 @@
                 });
 
                 sortedNotes.forEach(note => {
-                    const rendered = createNote(note.keyChar, scaledTime);
-                    note.element = rendered.element;
-                    note.x = rendered.x;
-                    note.y = rendered.y;
-                    note.row = rendered.row;
-                    note.col = rendered.col;
-                    note.hit = false;
-                    note.missed = false;
-                    note.currentY = rendered.y;
-                    renderedNotes.push(note);
+                    const layout = keyboardLayouts.get(note.keyChar) || { row: 1, col: 0 };
+                    noteQueue.push({
+                        keyChar: note.keyChar,
+                        noteName: note.noteName,
+                        durationMs: note.durationMs,
+                        row: layout.row,
+                        col: layout.col,
+                        element: null,
+                        hit: false,
+                        missed: false,
+                        spawnedAt: null,
+                        y: null,
+                    });
                 });
             });
+
+            nextNoteIndex = 0;
+            activeNote = null;
         }
 
-        function getCursorPosition(elapsedMs) {
-            const y = getJudgmentY() - chartLeadPx + (elapsedMs * pixelsPerMs * visualSpeed);
-            return { x: 0, y, row: 0 };
+        function spawnNextNote() {
+            if (nextNoteIndex >= noteQueue.length) {
+                activeNote = null;
+                return;
+            }
+
+            const note = noteQueue[nextNoteIndex++];
+            const noteEl = document.createElement('div');
+            noteEl.className = 'note';
+            noteEl.textContent = note.keyChar;
+
+            const spec = rowSpecs[note.row] || rowSpecs[1];
+            note.x = spec.start + note.col * spec.step;
+            note.y = -40;
+            note.spawnedAt = performance.now();
+            note.element = noteEl;
+
+            noteEl.style.left = `${note.x}px`;
+            noteEl.style.top = `${note.y}px`;
+            noteEl.style.zIndex = String(20 - note.row);
+            noteEl.style.transform = 'translate(-50%, -50%)';
+
+            sheet.appendChild(noteEl);
+            activeNote = note;
         }
 
         function triggerNote(note) {
@@ -496,30 +526,32 @@
         function judgeNote(key) {
             if (!isPlaying) return;
 
-            const elapsedMs = performance.now() - playStartAt;
-            let bestNote = null;
-            let bestDistance = Infinity;
+            if (!activeNote) {
+                spawnNextNote();
+                return;
+            }
 
-            renderedNotes.forEach(note => {
-                if (note.hit || note.missed) return;
-                if (note.keyChar !== key) return;
+            const elapsedMs = performance.now() - activeNote.spawnedAt;
+            const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
+            const currentY = -40 + (fallTravelPx * travel);
+            const distance = Math.abs(currentY - getJudgmentY());
 
-                const currentY = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
-                note.currentY = currentY;
-                const distance = Math.abs(currentY - getJudgmentY());
-
-                if (distance <= judgeTolerancePx && distance < bestDistance) {
-                    bestNote = note;
-                    bestDistance = distance;
-                }
-            });
-
-            if (bestNote) {
-                triggerNote(bestNote);
+            if (key === activeNote.keyChar && distance <= judgeTolerancePx) {
+                triggerNote(activeNote);
+                activeNote = null;
+                spawnNextNote();
                 showFeedback('PERPECT!!');
                 return;
             }
 
+            if (activeNote.element) {
+                const missElement = activeNote.element;
+                missElement.classList.add('miss');
+                setTimeout(() => missElement.remove(), 140);
+            }
+            activeNote.missed = true;
+            activeNote = null;
+            spawnNextNote();
             showFeedback('miss');
         }
 
@@ -527,7 +559,8 @@
             if (animationId) cancelAnimationFrame(animationId);
             animationId = null;
             isPlaying = false;
-            nextGroupIndex = 0;
+            nextNoteIndex = 0;
+            activeNote = null;
             clearTimeout(feedbackTimer);
             playBtn.disabled = !currentMidi;
             stopBtn.disabled = true;
@@ -536,32 +569,19 @@
         function updatePlayback() {
             if (!isPlaying) return;
 
-            const elapsedMs = performance.now() - playStartAt;
-
             cursor.style.display = 'block';
 
-            renderedNotes.forEach(note => {
-                if (!note.element) return;
-                const y = getJudgmentY() - chartLeadPx + (elapsedMs - note.timeMs) * pixelsPerMs * visualSpeed;
-                note.currentY = y;
-                note.element.style.top = `${y}px`;
-                if (note.hit) {
-                    note.element.classList.add('hit');
-                } else if (note.missed) {
-                    note.element.classList.add('miss');
-                } else {
-                    note.element.classList.remove('hit', 'miss');
-                }
+            if (!activeNote && nextNoteIndex < noteQueue.length) {
+                spawnNextNote();
+            }
 
-                if (!note.hit && !note.missed && y > getJudgmentY() + judgeTolerancePx) {
-                    note.missed = true;
-                    note.element.classList.add('miss');
-                }
-            });
-
-            const lastTimeMs = getLastTimeMs(currentMidi);
-            const allResolved = renderedNotes.length > 0 && renderedNotes.every(note => note.hit || note.missed);
-            if (allResolved && elapsedMs >= lastTimeMs + 500) {
+            if (activeNote && activeNote.element) {
+                const elapsedMs = performance.now() - activeNote.spawnedAt;
+                const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
+                const y = -40 + (fallTravelPx * travel);
+                activeNote.y = y;
+                activeNote.element.style.top = `${y}px`;
+            } else if (!activeNote && nextNoteIndex >= noteQueue.length) {
                 stopPlayback();
                 status.textContent = '재생 완료';
                 return;
@@ -571,13 +591,14 @@
         }
 
         async function startPlayback() {
-            if (!currentMidi || noteGroups.length === 0) return;
+            if (!currentMidi || noteQueue.length === 0) return;
 
             await Tone.start();
             stopPlayback();
 
             isPlaying = true;
-            nextGroupIndex = 0;
+            nextNoteIndex = 0;
+            activeNote = null;
             playStartAt = performance.now();
             playBtn.disabled = true;
             stopBtn.disabled = false;
