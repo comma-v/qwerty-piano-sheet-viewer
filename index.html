@@ -399,6 +399,14 @@
             updateUI();
         }
 
+        function getActiveGroupHeadTime() {
+            const candidates = notes
+                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
+                .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
+
+            return candidates.length ? candidates[0].time : null;
+        }
+
         function processSingleStep() {
             if (!isPlaying) return;
 
@@ -418,14 +426,16 @@
         }
 
         function getRequiredNote() {
+            const headTime = getActiveGroupHeadTime();
+            if (headTime === null) return [];
+
             const candidates = notes
-                .filter(n => n.active && n.time >= gameTime - EARLY_HIT_SEC && n.time <= gameTime + GROUP_WINDOW_SEC)
+                .filter(n => n.active && Math.abs(n.time - headTime) < GROUP_WINDOW_SEC)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
             if (candidates.length === 0) return [];
 
-            const head = candidates[0];
-            return candidates.filter(n => Math.abs(n.time - head.time) < GROUP_WINDOW_SEC);
+            return candidates;
         }
 
         function processManualKey(key) {
