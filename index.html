@@ -467,7 +467,7 @@
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
-                ctx.fillStyle = '#7fff00';
+                ctx.fillStyle = 'rgba(127, 255, 0, 0.08)';
                 ctx.strokeStyle = '#111111';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -475,13 +475,18 @@
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.fillStyle = '#111111';
                 ctx.font = 'bold 14px monospace';
                 ctx.textAlign = 'left';
 
                 rows.forEach((row, rowIdx) => {
                     row.forEach((note, idx) => {
-                        ctx.fillText(note.char, groupX + 6 + (idx * 9), rowY + 16 + (rowIdx * 16));
+                        const textX = groupX + 6 + (idx * 9);
+                        const textY = rowY + 16 + (rowIdx * 16);
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#111111';
+                        ctx.strokeText(note.char, textX, textY);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(note.char, textX, textY);
                     });
                 });
             });
