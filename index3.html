@@ -218,6 +218,11 @@
         let playStartAt = 0;
         let isPlaying = false;
         let nextGroupIndex = 0;
+        let visualSpeed = 1;
+        const visualSpeedStep = 0.1;
+        const visualSpeedMin = 0.5;
+        const visualSpeedMax = 2.0;
+        const chartLeadPx = 320;
 
         let synth = null;
 
@@ -324,7 +329,7 @@
             cursor.style.display = 'none';
             renderedNotes = [];
             sheet.style.width = '240px';
-            sheet.style.height = '640px';
+            sheet.style.height = '1280px';
         }
 
         function getJudgmentY() {
@@ -337,7 +342,7 @@
             noteEl.textContent = char;
 
             const x = 28 + stackIndex * 56;
-            const y = getJudgmentY() - scaledTime;
+            const y = getJudgmentY() - (scaledTime * visualSpeed) - chartLeadPx;
 
             noteEl.style.left = `${x}px`;
             noteEl.style.top = `${y}px`;
@@ -349,7 +354,7 @@
 
         function renderGroups(groups) {
             clearSheet();
-            sheet.style.height = `${sheetWrap.clientHeight}px`;
+            sheet.style.height = '1280px';
 
             groups.forEach(group => {
                 const scaledTime = group.timeMs * pixelsPerMs;
@@ -368,7 +373,7 @@
 
         function getCursorPosition(elapsedMs) {
             const scaledTime = elapsedMs * pixelsPerMs;
-            return { x: 0, y: getJudgmentY() - scaledTime, row: 0 };
+            return { x: 0, y: getJudgmentY() - (scaledTime * visualSpeed) - chartLeadPx, row: 0 };
         }
 
         function playGroup(group) {
@@ -398,15 +403,15 @@
             if (!isPlaying) return;
 
             const elapsedMs = performance.now() - playStartAt;
-            const travelPx = elapsedMs * pixelsPerMs;
+            const travelPx = elapsedMs * pixelsPerMs * visualSpeed;
 
             cursor.style.display = 'block';
 
             renderedNotes.forEach(note => {
                 if (!note.element) return;
-                const y = getJudgmentY() - (note.timeMs * pixelsPerMs) + travelPx;
+                const y = getJudgmentY() - (note.timeMs * pixelsPerMs * visualSpeed) - chartLeadPx + travelPx;
                 note.element.style.transform = `translate(-50%, -50%) translateY(${travelPx}px)`;
-                note.element.style.top = `${getJudgmentY() - (note.timeMs * pixelsPerMs)}px`;
+                note.element.style.top = `${getJudgmentY() - (note.timeMs * pixelsPerMs * visualSpeed) - chartLeadPx}px`;
                 note.element.style.left = `${note.element.style.left}`;
                 note.element.dataset.y = String(y);
             });
@@ -437,7 +442,7 @@
             playStartAt = performance.now();
             playBtn.disabled = true;
             stopBtn.disabled = false;
-            status.textContent = '재생 중... 커서가 닿는 노트를 동시에 재생합니다.';
+            status.textContent = `재생 중... 속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
 
             updatePlayback();
         }
@@ -467,6 +472,20 @@
         stopBtn.addEventListener('click', () => {
             stopPlayback();
             status.textContent = '정지됨';
+        });
+
+        window.addEventListener('keydown', e => {
+            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+            if (e.key === '1') {
+                visualSpeed = Math.max(visualSpeedMin, +(visualSpeed - visualSpeedStep).toFixed(1));
+                status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+            }
+
+            if (e.key === '2') {
+                visualSpeed = Math.min(visualSpeedMax, +(visualSpeed + visualSpeedStep).toFixed(1));
+                status.textContent = `속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게`;
+            }
         });
     </script>
 </body>
