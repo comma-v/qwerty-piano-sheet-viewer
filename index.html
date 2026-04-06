@@ -519,8 +519,8 @@
 
                 const usedRows = rows.filter(row => row.length > 0);
                 const widestRow = Math.max(...rows.map(row => row.length), 1);
-                const boxWidth = Math.max(42, 24 + widestRow * 12);
-                const boxHeight = Math.max(36, 18 + usedRows.length * 14);
+                const boxWidth = Math.max(42, 28 + widestRow * 10);
+                const boxHeight = Math.max(36, 16 + usedRows.length * 16);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
@@ -538,7 +538,7 @@
 
                 rows.forEach((row, rowIdx) => {
                     row.forEach((note, idx) => {
-                        ctx.fillText(note.char, groupX + 6 + (idx * 10), rowY + 16 + (rowIdx * 14));
+                        ctx.fillText(note.char, groupX + 6 + (idx * 9), rowY + 16 + (rowIdx * 16));
                     });
                 });
             });
