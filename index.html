@@ -299,6 +299,8 @@
             reader.readAsArrayBuffer(file);
         });
 
+        const GROUP_WINDOW_SEC = 0.06;
+
         function groupNotesForDisplay(sourceNotes) {
             if (sourceNotes.length === 0) return [];
 
@@ -308,7 +310,7 @@
 
             for (let i = 1; i < sourceNotes.length; i++) {
                 const note = sourceNotes[i];
-                if (Math.abs(note.time - groupStartTime) < 0.06) {
+                if (Math.abs(note.time - groupStartTime) < GROUP_WINDOW_SEC) {
                     currentGroup.push(note);
                 } else {
                     groups.push({ time: groupStartTime, notes: currentGroup });
@@ -407,7 +409,7 @@
             if (candidates.length === 0) return [];
 
             const head = candidates[0];
-            return candidates.filter(n => Math.abs(n.time - head.time) < 0.03);
+            return candidates.filter(n => Math.abs(n.time - head.time) < GROUP_WINDOW_SEC);
         }
 
         function processManualKey(key) {
