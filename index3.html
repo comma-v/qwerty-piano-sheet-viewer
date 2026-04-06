@@ -9,13 +9,16 @@
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root {
-            --bg: #ffffff;
-            --text: #111;
-            --panel: #fff;
-            --border: #666;
-            --note-hit: #d5ffd7;
-            --note-hit-border: #148a2b;
-            --cursor: red;
+            --bg: #0f1115;
+            --text: #e7e9ee;
+            --panel: #171a21;
+            --border: #6d7480;
+            --note-bg: #222733;
+            --note-text: #f2f5ff;
+            --note-hit: #2f3e2f;
+            --note-hit-border: #7edb8a;
+            --cursor: #ff5a5f;
+            --accent: #8aa4ff;
             --sheet-width: 760px;
             --sheet-height: 320px;
             --inner-width: 640px;
@@ -58,6 +61,18 @@
             font-size: 14px;
         }
 
+        input[type="file"], button {
+            color: var(--text);
+            background: #222734;
+            border: 1px solid #3a4150;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        button:disabled {
+            opacity: 0.45;
+        }
+
         #status {
             min-height: 22px;
             margin: 10px 0 18px;
@@ -78,6 +93,8 @@
             overflow: hidden;
             position: relative;
             background: var(--panel);
+            border: 1px solid #2a3040;
+            border-radius: 12px;
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
@@ -98,10 +115,10 @@
             position: absolute;
             min-width: 34px;
             padding: 6px 8px;
-            background: #fff;
-            color: #111;
+            background: var(--note-bg);
+            color: var(--note-text);
             border: 1px solid var(--border);
-            border-radius: 0;
+            border-radius: 8px;
             font-size: 15px;
             line-height: 1.25;
             text-align: center;
@@ -123,12 +140,12 @@
             display: none;
             width: 100%;
             height: 2px;
-            background: linear-gradient(to right, rgba(255, 0, 0, 0.15), var(--cursor), rgba(255, 0, 0, 0.15));
+            background: linear-gradient(to right, rgba(255, 90, 95, 0.15), var(--cursor), rgba(255, 90, 95, 0.15));
             transform: translate3d(0, 0, 0);
             transform-origin: left center;
             pointer-events: none;
             will-change: transform;
-            box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
+            box-shadow: 0 0 8px rgba(255, 90, 95, 0.35);
         }
 
         .scrollbar {
@@ -140,8 +157,8 @@
             left: 0;
             width: 100%;
             min-height: 36px;
-            background: #bdbdbd;
-            border: 1px solid #8b8b8b;
+            background: #394155;
+            border: 1px solid #596275;
             cursor: grab;
         }
 
