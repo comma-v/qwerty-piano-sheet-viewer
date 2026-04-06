@@ -152,6 +152,12 @@
             box-shadow: 0 0 12px rgba(255, 90, 95, 0.5);
         }
 
+        #cursor.flash {
+            background: linear-gradient(to right, rgba(126, 219, 138, 0.12), #7edb8a, rgba(126, 219, 138, 0.12));
+            box-shadow: 0 0 18px rgba(126, 219, 138, 0.9), 0 0 32px rgba(126, 219, 138, 0.35);
+            transform: scaleY(2);
+        }
+
         #judgeLine {
             position: absolute;
             left: 0;
@@ -245,6 +251,8 @@
         const visualSpeedMax = 2.0;
         const chartLeadPx = 700;
         const keyboardWidth = 760;
+        let feedbackTimer = null;
+        let judgeFlashTimer = null;
 
         const keyboardLayouts = new Map();
         [
@@ -462,8 +470,26 @@
             note.hit = true;
             if (note.element) {
                 note.element.classList.add('hit');
-                setTimeout(() => note.element.classList.remove('hit'), 180);
+                setTimeout(() => {
+                    note.element.remove();
+                }, 140);
             }
+
+            clearTimeout(judgeFlashTimer);
+            cursor.classList.add('flash');
+            judgeFlashTimer = setTimeout(() => {
+                cursor.classList.remove('flash');
+            }, 120);
+        }
+
+        function showFeedback(message) {
+            clearTimeout(feedbackTimer);
+            status.textContent = message;
+            feedbackTimer = setTimeout(() => {
+                if (currentMidi) {
+                    status.textContent = `재생 중... 속도 x${visualSpeed.toFixed(1)} | 1: 느리게 2: 빠르게 | 키를 눌러 판정`;
+                }
+            }, 350);
         }
 
         function judgeNote(key) {
@@ -489,7 +515,11 @@
 
             if (bestNote) {
                 triggerNote(bestNote);
+                showFeedback('PERPECT!!');
+                return;
             }
+
+            showFeedback('miss');
         }
 
         function stopPlayback() {
@@ -497,6 +527,7 @@
             animationId = null;
             isPlaying = false;
             nextGroupIndex = 0;
+            clearTimeout(feedbackTimer);
             playBtn.disabled = !currentMidi;
             stopBtn.disabled = true;
         }
