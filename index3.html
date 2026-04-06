@@ -117,8 +117,8 @@
         }
 
         #cursor {
-            position: absolute;
-            top: 0;
+            position: sticky;
+            bottom: 12px;
             left: 0;
             z-index: 10;
             display: none;
@@ -431,12 +431,7 @@
 
             cursor.style.display = 'block';
 
-            const smoothing = 0.28;
-            cursorVisualX += (cursorPos.x - cursorVisualX) * smoothing;
-            cursorVisualY += (cursorPos.y - cursorVisualY) * smoothing;
-            cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
-
-            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight * 0.4));
+            const targetScrollTop = Math.max(0, cursorPos.y - (sheetWrap.clientHeight - 28));
             scrollVisualY += (targetScrollTop - scrollVisualY) * 0.18;
             setScrollTop(scrollVisualY);
 
@@ -468,11 +463,7 @@
             stopBtn.disabled = false;
             status.textContent = '재생 중... 커서가 닿는 노트를 동시에 재생합니다.';
 
-            const startPos = getCursorPosition(0);
-            cursorVisualX = startPos.x;
-            cursorVisualY = startPos.y;
             scrollVisualY = 0;
-            cursor.style.transform = `translate3d(${cursorVisualX}px, ${cursorVisualY}px, 0)`;
             setScrollTop(0);
 
             updatePlayback();
