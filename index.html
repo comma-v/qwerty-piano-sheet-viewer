@@ -389,6 +389,10 @@
             return index - 50;
         }
 
+        function displayKeyChar(char) {
+            return char === '0' ? 'θ' : char;
+        }
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
