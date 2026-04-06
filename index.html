@@ -414,7 +414,7 @@
 
         function getRequiredNote() {
             const candidates = notes
-                .filter(n => n.active && Math.abs(gameTime - n.time) < 0.25)
+                .filter(n => n.active)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
             if (candidates.length === 0) return [];
@@ -432,10 +432,7 @@
             const requiredGroup = getRequiredNote();
             if (requiredGroup.length === 0) return;
 
-            const target = requiredGroup.find(n =>
-                n.active &&
-                n.midi === pressedMidi
-            );
+            const target = requiredGroup.find(n => n.active && n.midi === pressedMidi);
 
             if (target) {
                 triggerNote(target);
@@ -494,7 +491,7 @@
                 rows.forEach(row => row.sort((a, b) => getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)));
 
                 const widestRow = Math.max(...rows.map(row => row.length), 1);
-                const boxWidth = Math.max(168, (28 + widestRow * 10) * 4);
+                const boxWidth = Math.max(220, (40 + widestRow * 16) * 4);
                 const boxHeight = Math.max(144, (16 + 4 * 16) * 4);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
@@ -507,13 +504,14 @@
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.font = 'bold 28px monospace';
+                ctx.font = 'bold 30px monospace';
                 ctx.textAlign = 'left';
 
                 rows.forEach((row, rowIdx) => {
+                    const cellWidth = Math.max(20, Math.floor((boxWidth - 20) / Math.max(row.length, 1)));
                     row.forEach((note, idx) => {
-                        const textX = groupX + 12 + (idx * 30);
-                        const textY = rowY + 38 + (rowIdx * 40);
+                        const textX = groupX + 12 + (idx * cellWidth);
+                        const textY = rowY + 44 + (rowIdx * 42);
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = '#111111';
                         ctx.strokeText(note.char, textX, textY);
