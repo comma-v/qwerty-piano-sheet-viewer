@@ -342,6 +342,10 @@
             return index - 50;
         }
 
+        function displayKeyChar(char) {
+            return char === '0' ? 'θ' : char;
+        }
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -514,9 +518,9 @@
                         const textY = rowY + 44 + (rowIdx * 42);
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = '#111111';
-                        ctx.strokeText(note.char, textX, textY);
+                        ctx.strokeText(displayKeyChar(note.char), textX, textY);
                         ctx.fillStyle = '#111111';
-                        ctx.fillText(note.char, textX, textY);
+                        ctx.fillText(displayKeyChar(note.char), textX, textY);
                     });
                 });
             });
