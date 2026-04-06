@@ -373,6 +373,22 @@
             return groups;
         }
 
+        function getKeyRow(key) {
+            const index = keyArray.indexOf(key);
+            if (index <= 16) return 0;
+            if (index <= 35) return 1;
+            if (index <= 49) return 2;
+            return 3;
+        }
+
+        function getKeyOrderInRow(key) {
+            const index = keyArray.indexOf(key);
+            if (index <= 16) return index;
+            if (index <= 35) return index - 17;
+            if (index <= 49) return index - 36;
+            return index - 50;
+        }
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
