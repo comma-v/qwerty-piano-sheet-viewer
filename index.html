@@ -426,16 +426,14 @@
         }
 
         function getRequiredNote() {
-            const headTime = getActiveGroupHeadTime();
-            if (headTime === null) return [];
-
             const candidates = notes
-                .filter(n => n.active && Math.abs(n.time - headTime) < GROUP_WINDOW_SEC)
+                .filter(n => n.active && Math.abs(n.time - gameTime) < 0.35)
                 .sort((a, b) => a.time - b.time || getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char));
 
             if (candidates.length === 0) return [];
 
-            return candidates;
+            const headTime = candidates[0].time;
+            return candidates.filter(n => Math.abs(n.time - headTime) < GROUP_WINDOW_SEC);
         }
 
         function processManualKey(key) {
