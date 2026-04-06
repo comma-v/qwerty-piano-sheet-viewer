@@ -9,14 +9,14 @@
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root {
-            --bg: #0f1115;
-            --text: #e7e9ee;
-            --panel: #171a21;
-            --border: #6d7480;
-            --note-bg: #222733;
-            --note-text: #f2f5ff;
-            --note-hit: #2f3e2f;
-            --note-hit-border: #7edb8a;
+            --bg: #ffffff;
+            --text: #111111;
+            --panel: #ffffff;
+            --border: #111111;
+            --note-bg: #ffffff;
+            --note-text: #111111;
+            --note-hit: #ffe4e4;
+            --note-hit-border: #111111;
             --cursor: #ff5a5f;
             --accent: #8aa4ff;
             --sheet-width: 760px;
@@ -30,7 +30,7 @@
         body {
             margin: 0;
             min-height: 100vh;
-            padding: 72px 56px 40px;
+            padding: 24px;
             font-family: Arial, Helvetica, sans-serif;
             color: var(--text);
             background: var(--bg);
@@ -38,7 +38,7 @@
         }
 
         .app {
-            max-width: 760px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -63,8 +63,8 @@
 
         input[type="file"], select, button {
             color: var(--text);
-            background: #222734;
-            border: 1px solid #3a4150;
+            background: #f2f2f2;
+            border: 1px solid #111;
             border-radius: 8px;
             padding: 8px 12px;
         }
@@ -88,13 +88,13 @@
 
         #sheetWrap {
             width: 100%;
-            height: var(--sheet-height);
+            height: 540px;
             margin: 0 auto;
             overflow: hidden;
             position: relative;
             background: var(--panel);
-            border: 1px solid #2a3040;
-            border-radius: 12px;
+            border: 0;
+            border-radius: 0;
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
@@ -105,33 +105,35 @@
         }
 
         #sheet {
-            width: 240px;
-            min-height: var(--sheet-height);
+            width: 100%;
+            min-height: 540px;
             margin: 0 auto;
             position: relative;
         }
 
         .note {
             position: absolute;
-            min-width: 18px;
-            padding: 0;
-            background: transparent;
-            color: #ffffff;
-            border: 0;
+            min-width: 42px;
+            min-height: 56px;
+            padding: 4px 6px;
+            background: var(--note-bg);
+            color: var(--note-text);
+            border: 2px solid var(--border);
             border-radius: 0;
-            font-size: 17px;
+            font-size: 15px;
             line-height: 1;
             font-weight: 700;
             text-align: center;
             white-space: pre-line;
             user-select: none;
             transform: translate(-50%, -50%);
-            text-shadow: 0 0 6px rgba(242, 245, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .note.hit {
-            color: #7edb8a;
-            text-shadow: 0 0 10px rgba(126, 219, 138, 0.65);
+            background: var(--note-hit);
         }
 
         .note.miss {
@@ -139,54 +141,30 @@
         }
 
         #cursor {
-            position: absolute;
-            bottom: 18px;
-            left: 0;
-            z-index: 10;
-            display: block;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(to right, rgba(255, 90, 95, 0.05), var(--cursor), rgba(255, 90, 95, 0.05));
-            transform: translate3d(0, 0, 0);
-            transform-origin: left center;
-            pointer-events: none;
-            will-change: transform;
-            box-shadow: 0 0 12px rgba(255, 90, 95, 0.5);
-        }
-
-        #cursor.flash {
-            background: linear-gradient(to right, rgba(126, 219, 138, 0.12), #7edb8a, rgba(126, 219, 138, 0.12));
-            box-shadow: 0 0 18px rgba(126, 219, 138, 0.9), 0 0 32px rgba(126, 219, 138, 0.35);
-            transform: scaleY(2);
+            display: none;
         }
 
         #judgeLine {
             position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 18px;
-            height: 3px;
-            z-index: 12;
+            left: 24px;
+            top: 24px;
+            z-index: 10;
+            width: 190px;
+            height: 540px;
+            background: #000;
             pointer-events: none;
-            background: linear-gradient(to right, rgba(138, 164, 255, 0.06), #8aa4ff, rgba(255, 90, 95, 0.08));
-            box-shadow: 0 0 10px rgba(138, 164, 255, 0.35);
         }
 
-        #keyBeam {
-            display: none;
-        }
-
-        .noteBeam {
+        #judgeArrow {
             position: absolute;
-            width: 10px;
-            height: calc(var(--sheet-height) / 8);
-            pointer-events: none;
+            left: 226px;
+            top: 44px;
             z-index: 11;
-            transform: translateX(-50%);
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
-            filter: blur(0.2px);
-            opacity: 0;
-            box-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
+            font-size: 100px;
+            line-height: 1;
+            color: #000;
+            pointer-events: none;
+            user-select: none;
         }
 
         .scrollbar {
@@ -229,6 +207,8 @@
 
         <div class="viewer">
             <div id="sheetWrap">
+                <div id="judgeLine"></div>
+                <div id="judgeArrow">→</div>
                 <div id="sheet">
                 </div>
                 <div id="cursor"></div>
@@ -294,8 +274,8 @@
         keyArray.forEach((key, index) => {
             if (!keySoundMap.has(key)) keySoundMap.set(key, 36 + index);
         });
-        const keyStep = 9;
-        const keyStart = 20;
+        const keyStep = 42;
+        const keyStart = 260;
 
         let synth = null;
 
@@ -530,14 +510,7 @@
                 noteEl.style.transform = 'translate(-50%, -50%)';
                 spawnedNote.element = noteEl;
 
-                const beamEl = document.createElement('div');
-                beamEl.className = 'noteBeam';
-                beamEl.style.left = `${spawnedNote.x}px`;
-                beamEl.style.top = `${getJudgmentY() - (sheetWrap.clientHeight / 8)}px`;
-                spawnedNote.beamEl = beamEl;
-
                 sheet.appendChild(noteEl);
-                sheet.appendChild(beamEl);
                 activeNotes.push(spawnedNote);
             });
         }
@@ -557,13 +530,6 @@
                 note.y = y;
                 note.element.style.top = `${y}px`;
 
-                if (note.beamEl) {
-                    const beamHeight = sheetWrap.clientHeight / 8;
-                    note.beamEl.style.top = `${targetY - beamHeight}px`;
-                    note.beamEl.style.left = `${note.x}px`;
-                    note.beamEl.style.opacity = Math.max(0.08, Math.min(0.9, 1 - (Math.abs(targetY - y) / judgeRangePx))).toFixed(2);
-                }
-
                 if (y >= targetY && !note.locked) {
                     note.locked = true;
                     pausePlayback();
@@ -580,10 +546,6 @@
                     note.element.remove();
                 }, 140);
             }
-            if (note.beamEl) {
-                note.beamEl.remove();
-            }
-
             clearTimeout(judgeFlashTimer);
             cursor.classList.add('flash');
             judgeFlashTimer = setTimeout(() => {
