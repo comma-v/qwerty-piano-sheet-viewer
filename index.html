@@ -255,6 +255,7 @@
         const chartLeadPx = 220;
         const keyboardWidth = 620;
         const fallDurationMs = 1100;
+        const snapDistancePx = 42;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
 
@@ -576,7 +577,8 @@
                 const elapsedMs = performance.now() - activeNote.spawnedAt;
                 const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
                 const targetY = getJudgmentY();
-                const y = Math.min(targetY, -40 + ((targetY + 40) * travel));
+                const rawY = -40 + ((targetY + 40) * travel);
+                const y = (targetY - rawY) <= snapDistancePx ? targetY : Math.min(targetY, rawY);
                 activeNote.y = y;
                 activeNote.element.style.top = `${y}px`;
             } else if (!activeNote && nextNoteIndex >= noteQueue.length) {
