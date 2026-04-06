@@ -254,7 +254,6 @@
         const visualSpeedMax = 2.0;
         const chartLeadPx = 220;
         const keyboardWidth = 620;
-        const fallTravelPx = 520;
         const fallDurationMs = 1100;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
@@ -531,9 +530,7 @@
                 return;
             }
 
-            const elapsedMs = performance.now() - activeNote.spawnedAt;
-            const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
-            const currentY = -40 + (fallTravelPx * travel);
+            const currentY = activeNote.y ?? -40;
             const distance = Math.abs(currentY - getJudgmentY());
 
             if (key === activeNote.keyChar && distance <= judgeTolerancePx) {
@@ -578,7 +575,8 @@
             if (activeNote && activeNote.element) {
                 const elapsedMs = performance.now() - activeNote.spawnedAt;
                 const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
-                const y = -40 + (fallTravelPx * travel);
+                const targetY = getJudgmentY();
+                const y = Math.min(targetY, -40 + ((targetY + 40) * travel));
                 activeNote.y = y;
                 activeNote.element.style.top = `${y}px`;
             } else if (!activeNote && nextNoteIndex >= noteQueue.length) {
