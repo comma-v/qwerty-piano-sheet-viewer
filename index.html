@@ -372,6 +372,14 @@
             }
         }
 
+        function playMappedKeySound(key) {
+            const midi = KEY_TO_MIDI[key];
+            if (midi === undefined) return;
+
+            const noteName = Tone.Frequency(midi + transpose, 'midi').toNote();
+            synth.triggerAttackRelease(noteName, '8n');
+        }
+
         function triggerNote(note) {
             note.active = false;
             score += 1000 + (combo * 10);
@@ -492,13 +500,13 @@
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.font = 'bold 34px monospace';
+                ctx.font = 'bold 28px monospace';
                 ctx.textAlign = 'left';
 
                 rows.forEach((row, rowIdx) => {
                     row.forEach((note, idx) => {
-                        const textX = groupX + 10 + (idx * 24);
-                        const textY = rowY + 42 + (rowIdx * 34);
+                        const textX = groupX + 12 + (idx * 30);
+                        const textY = rowY + 38 + (rowIdx * 40);
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = '#111111';
                         ctx.strokeText(note.char, textX, textY);
@@ -565,6 +573,7 @@
                 e.preventDefault();
                 processSingleStep();
             } else {
+                playMappedKeySound(e.key);
                 processManualKey(e.key);
             }
         });
