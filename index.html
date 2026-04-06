@@ -242,12 +242,11 @@
         let currentMidi = null;
         let noteGroups = [];
         let noteQueue = [];
-        let renderedNotes = [];
         let animationId = null;
         let playStartAt = 0;
         let isPlaying = false;
         let nextNoteIndex = 0;
-        let activeNote = null;
+        let activeNotes = [];
         let visualSpeed = 1;
         const visualSpeedStep = 0.1;
         const visualSpeedMin = 0.5;
@@ -256,6 +255,8 @@
         const keyboardWidth = 620;
         const fallDurationMs = 1100;
         const snapDistancePx = 42;
+        const judgeHoldMs = 240;
+        const startY = -40;
         let feedbackTimer = null;
         let judgeFlashTimer = null;
 
@@ -409,7 +410,7 @@
 
         function clearSheet() {
             sheet.querySelectorAll('.note').forEach(el => el.remove());
-            renderedNotes = [];
+            activeNotes = [];
             sheet.style.width = `${keyboardWidth}px`;
             sheet.style.height = '1280px';
         }
@@ -455,6 +456,8 @@
                         keyChar: note.keyChar,
                         noteName: note.noteName,
                         durationMs: note.durationMs,
+                        timeMs: note.timeMs,
+                        spawnTimeMs: Math.max(0, note.timeMs - fallDurationMs),
                         row: layout.row,
                         col: layout.col,
                         element: null,
@@ -462,29 +465,24 @@
                         missed: false,
                         spawnedAt: null,
                         y: null,
+                        locked: false,
                     });
                 });
             });
 
             nextNoteIndex = 0;
-            activeNote = null;
+            activeNotes = [];
         }
 
-        function spawnNextNote() {
-            if (nextNoteIndex >= noteQueue.length) {
-                activeNote = null;
-                return;
-            }
-
-            const note = noteQueue[nextNoteIndex++];
+        function spawnNote(note, nowMs) {
             const noteEl = document.createElement('div');
             noteEl.className = 'note';
             noteEl.textContent = note.keyChar;
 
             const spec = rowSpecs[note.row] || rowSpecs[1];
             note.x = spec.start + note.col * spec.step;
-            note.y = -40;
-            note.spawnedAt = performance.now();
+            note.y = startY;
+            note.spawnedAt = nowMs;
             note.element = noteEl;
 
             noteEl.style.left = `${note.x}px`;
@@ -493,7 +491,14 @@
             noteEl.style.transform = 'translate(-50%, -50%)';
 
             sheet.appendChild(noteEl);
-            activeNote = note;
+            activeNotes.push(note);
+        }
+
+        function spawnDueNotes(currentTimeMs) {
+            while (nextNoteIndex < noteQueue.length && noteQueue[nextNoteIndex].spawnTimeMs <= currentTimeMs) {
+                spawnNote(noteQueue[nextNoteIndex], currentTimeMs);
+                nextNoteIndex++;
+            }
         }
 
         function triggerNote(note) {
@@ -526,30 +531,38 @@
         function judgeNote(key) {
             if (!isPlaying) return;
 
-            if (!activeNote) {
-                spawnNextNote();
-                return;
-            }
+            const candidates = activeNotes.filter(note => !note.hit && !note.missed && note.keyChar === key);
+            let bestNote = null;
+            let bestDistance = Infinity;
 
-            const currentY = activeNote.y ?? -40;
-            const distance = Math.abs(currentY - getJudgmentY());
+            candidates.forEach(note => {
+                const currentY = note.y ?? startY;
+                const distance = Math.abs(currentY - getJudgmentY());
+                if (distance < bestDistance) {
+                    bestNote = note;
+                    bestDistance = distance;
+                }
+            });
 
-            if (key === activeNote.keyChar && distance <= judgeTolerancePx) {
-                triggerNote(activeNote);
-                activeNote = null;
-                spawnNextNote();
+            if (bestNote && bestDistance <= judgeTolerancePx) {
+                triggerNote(bestNote);
+                activeNotes = activeNotes.filter(note => note !== bestNote);
                 showFeedback('PERPECT!!');
                 return;
             }
 
-            if (activeNote.element) {
-                const missElement = activeNote.element;
-                missElement.classList.add('miss');
-                setTimeout(() => missElement.remove(), 140);
+            if (bestNote) {
+                bestNote.missed = true;
+                if (bestNote.element) {
+                    const missElement = bestNote.element;
+                    missElement.classList.add('miss');
+                    setTimeout(() => missElement.remove(), 140);
+                }
+                activeNotes = activeNotes.filter(note => note !== bestNote);
+                showFeedback('miss');
+                return;
             }
-            activeNote.missed = true;
-            activeNote = null;
-            spawnNextNote();
+
             showFeedback('miss');
         }
 
@@ -558,7 +571,7 @@
             animationId = null;
             isPlaying = false;
             nextNoteIndex = 0;
-            activeNote = null;
+            activeNotes = [];
             clearTimeout(feedbackTimer);
             playBtn.disabled = !currentMidi;
             stopBtn.disabled = true;
@@ -569,19 +582,33 @@
 
             cursor.style.display = 'block';
 
-            if (!activeNote && nextNoteIndex < noteQueue.length) {
-                spawnNextNote();
-            }
+            const currentTimeMs = performance.now() - playStartAt;
+            spawnDueNotes(currentTimeMs);
 
-            if (activeNote && activeNote.element) {
-                const elapsedMs = performance.now() - activeNote.spawnedAt;
-                const travel = Math.min(1, (elapsedMs / fallDurationMs) * visualSpeed);
+            activeNotes.forEach(note => {
+                if (!note.element || note.hit || note.missed) return;
+
                 const targetY = getJudgmentY();
-                const rawY = -40 + ((targetY + 40) * travel);
-                const y = (targetY - rawY) <= snapDistancePx ? targetY : Math.min(targetY, rawY);
-                activeNote.y = y;
-                activeNote.element.style.top = `${y}px`;
-            } else if (!activeNote && nextNoteIndex >= noteQueue.length) {
+                const travel = Math.min(1, Math.max(0, (currentTimeMs - note.spawnTimeMs) / fallDurationMs));
+                const rawY = startY + ((targetY - startY) * travel);
+                const y = rawY >= targetY - snapDistancePx ? targetY : rawY;
+                note.y = y;
+                note.element.style.top = `${y}px`;
+
+                if (y >= targetY && !note.locked) {
+                    note.locked = true;
+                    setTimeout(() => {
+                        if (!note.hit && !note.missed && note.element) {
+                            note.missed = true;
+                            note.element.classList.add('miss');
+                            setTimeout(() => note.element.remove(), 140);
+                            activeNotes = activeNotes.filter(item => item !== note);
+                        }
+                    }, judgeHoldMs);
+                }
+            });
+
+            if (nextNoteIndex >= noteQueue.length && activeNotes.length === 0) {
                 stopPlayback();
                 status.textContent = '재생 완료';
                 return;
@@ -598,7 +625,7 @@
 
             isPlaying = true;
             nextNoteIndex = 0;
-            activeNote = null;
+            activeNotes = [];
             playStartAt = performance.now();
             playBtn.disabled = true;
             stopBtn.disabled = false;
