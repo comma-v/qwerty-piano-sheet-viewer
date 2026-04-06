@@ -462,8 +462,8 @@
 
                 const usedRows = rows.filter(row => row.length > 0);
                 const widestRow = Math.max(...rows.map(row => row.length), 1);
-                const boxWidth = Math.max(42, 28 + widestRow * 10);
-                const boxHeight = Math.max(36, 16 + usedRows.length * 16);
+                const boxWidth = Math.max(168, (28 + widestRow * 10) * 4);
+                const boxHeight = Math.max(144, (16 + usedRows.length * 16) * 4);
 
                 if (groupX + boxWidth < 0 || groupX > canvas.width + 80) return;
 
@@ -485,7 +485,7 @@
                         ctx.lineWidth = 3;
                         ctx.strokeStyle = '#111111';
                         ctx.strokeText(note.char, textX, textY);
-                        ctx.fillStyle = '#ffffff';
+                        ctx.fillStyle = '#111111';
                         ctx.fillText(note.char, textX, textY);
                     });
                 });
