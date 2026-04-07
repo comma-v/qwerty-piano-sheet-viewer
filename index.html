@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>White MIDI Stepper - Case Sensitive</title>
+    <title>Dark MIDI Stepper - Case Sensitive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
@@ -12,9 +12,9 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #f8fafc;
+            background-color: #020617;
             font-family: 'Pretendard', sans-serif;
-            color: #1e293b;
+            color: #e2e8f0;
         }
 
         canvas {
@@ -38,13 +38,13 @@
             transform: translateX(-50%);
             width: 600px;
             max-width: 95vw;
-            background: rgba(255, 255, 255, 0.98);
+            background: rgba(15, 23, 42, 0.96);
             border-radius: 24px 24px 0 0;
             pointer-events: auto;
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(148, 163, 184, 0.12);
             border-bottom: none;
             backdrop-filter: blur(20px);
-            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.45);
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 50;
         }
@@ -56,7 +56,7 @@
         .toggle-btn {
             width: 40px;
             height: 24px;
-            background: #f1f5f9;
+            background: #1e293b;
             border-radius: 12px;
             margin: 8px auto;
             cursor: pointer;
@@ -95,51 +95,6 @@
             transform: translateX(-50%) scale(1);
         }
 
-        .key-guides {
-            position: absolute;
-            left: 0;
-            top: 120px;
-            display: flex;
-            flex-direction: column;
-            z-index: 5;
-        }
-
-        .lane-info {
-            height: 100px;
-            width: 100px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-bottom: 1px solid #f1f5f9;
-            border-right: 2px solid #e2e8f0;
-            transition: all 0.2s;
-        }
-
-        .lane-info .title {
-            font-weight: 900;
-            font-size: 0.65rem;
-            color: #94a3b8;
-            margin-bottom: 4px;
-        }
-
-        .lane-info .keys {
-            font-size: 10px;
-            color: #cbd5e1;
-            font-family: monospace;
-            text-align: center;
-            line-height: 1;
-        }
-
-        .lane-info.active {
-            background: #1e293b;
-            border-right-color: #6366f1;
-        }
-
-        .lane-info.active .title {
-            color: #818cf8;
-        }
     </style>
 </head>
 
@@ -148,13 +103,6 @@
     <div id="overlay">
         <div id="judgment" class="judgment-text">PERFECT</div>
 
-        <div class="key-guides" id="key-guides">
-            <div class="lane-info" data-lane="0"><span class="title">ROW 1</span><span class="keys">1~0 !~)</span></div>
-            <div class="lane-info" data-lane="1"><span class="title">ROW 2</span><span class="keys">q~p Q~P</span></div>
-            <div class="lane-info" data-lane="2"><span class="title">ROW 3</span><span class="keys">a~l A~L</span></div>
-            <div class="lane-info" data-lane="3"><span class="title">ROW 4</span><span class="keys">z~m Z~M</span></div>
-        </div>
-
         <div id="controls-panel" class="controls-container">
             <div class="toggle-btn" id="panel-toggle">
                 <div class="toggle-icon"></div>
@@ -162,19 +110,19 @@
             <div class="px-8 pb-8">
                 <div class="flex justify-between items-center h-[28px] mb-6">
                     <div class="flex items-center gap-4">
-                        <h2 class="text-sm font-black tracking-tight text-slate-900 italic">CASE SENSITIVE STEPPER</h2>
+                        <h2 class="text-sm font-black tracking-tight text-slate-100 italic">CASE SENSITIVE STEPPER</h2>
                         <div id="transpose-val"
-                            class="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-bold text-slate-500">TRP +0
+                            class="text-[10px] bg-slate-800 px-3 py-1 rounded-full font-bold text-slate-300">TRP +0
                         </div>
                     </div>
                     <div class="flex gap-8 items-center">
                         <div class="flex items-baseline gap-2">
                             <span class="text-[9px] text-slate-400 font-bold uppercase">Score</span>
-                            <span id="score-val" class="text-xl font-black tabular-nums text-slate-900">0</span>
+                            <span id="score-val" class="text-xl font-black tabular-nums text-slate-100">0</span>
                         </div>
                         <div class="flex items-baseline gap-2">
                             <span class="text-[9px] text-slate-400 font-bold uppercase">Combo</span>
-                            <span id="combo-val" class="text-xl font-black text-indigo-600 tabular-nums">0</span>
+                            <span id="combo-val" class="text-xl font-black text-indigo-400 tabular-nums">0</span>
                         </div>
                     </div>
                 </div>
@@ -186,29 +134,29 @@
                                 Library</label>
                             <input type="file" id="midi-upload" accept=".mid,.midi" class="block w-full text-[10px] text-slate-500
                                 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0
-                                file:text-[10px] file:font-bold file:bg-slate-100 file:text-slate-700
-                                hover:file:bg-slate-200 cursor-pointer" />
-                            <div id="status" class="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">
+                                file:text-[10px] file:font-bold file:bg-slate-800 file:text-slate-200
+                                hover:file:bg-slate-700 cursor-pointer" />
+                            <div id="status" class="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">
                                 WAITING FOR SYSTEM...</div>
                         </div>
                         <div class="flex gap-2">
                             <button id="play-btn" disabled
-                                class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs hover:bg-indigo-600 transition-all shadow-lg active:scale-95 disabled:opacity-20">START
+                                class="flex-1 bg-indigo-500 text-white py-4 rounded-2xl font-black text-xs hover:bg-indigo-400 transition-all shadow-lg active:scale-95 disabled:opacity-20">START
                                 SESSION</button>
                             <button id="stop-btn"
-                                class="px-6 bg-slate-100 text-slate-400 py-4 rounded-2xl font-black text-xs hover:text-slate-900 transition-colors">■</button>
+                                class="px-6 bg-slate-800 text-slate-400 py-4 rounded-2xl font-black text-xs hover:text-slate-100 transition-colors">■</button>
                         </div>
                     </div>
 
-                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-800 flex justify-between items-center">
                         <div class="space-y-1">
                             <p class="text-[9px] text-slate-500 font-bold uppercase">Mapping Info</p>
-                            <p class="text-[10px] text-slate-400 leading-tight">Case Sensitive: 'a' and 'A' are
+                            <p class="text-[10px] text-slate-300 leading-tight">Case Sensitive: 'a' and 'A' are
                                 different. SPACE for auto-step.</p>
                         </div>
                         <div class="flex gap-1">
                             <div
-                                class="px-3 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                                class="px-3 h-6 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300">
                                 SHIFT + KEY</div>
                         </div>
                     </div>
@@ -246,6 +194,7 @@
         let transpose = 0;
         let lastProcessedNoteTime = -1;
         let displayGroups = [];
+        const MANUAL_HIT_WINDOW_SEC = 0.35;
 
         const HIT_X = 240;
         const SPEED = 450;
@@ -287,14 +236,31 @@
 
         window.onload = function () {
             if (typeof Tone !== 'undefined') {
-                initSampler();
+                initSampler().catch(() => {
+                    status.textContent = "AUDIO INIT FAILED";
+                });
             } else {
                 status.textContent = "TONE.JS LOAD FAILED";
             }
             requestAnimationFrame(draw);
         };
 
-        function initSampler() {
+        async function initSampler() {
+            const chorus = new Tone.Chorus({
+                frequency: 1.5,
+                delayTime: 4,
+                depth: 0.25,
+                spread: 180,
+                wet: 0.18
+            }).start();
+
+            const reverb = new Tone.Reverb({
+                decay: 3.2,
+                preDelay: 0.02,
+                wet: 0.22
+            });
+            await reverb.generate();
+
             synth = new Tone.Sampler({
                 urls: {
                     "A0": "A0.mp3", "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3",
@@ -306,13 +272,15 @@
                     "A6": "A6.mp3", "C7": "C7.mp3", "D#7": "Ds7.mp3", "F#7": "Fs7.mp3",
                     "A7": "A7.mp3", "C8": "C8.mp3"
                 },
-                release: 1.5,
+                release: 2.8,
                 baseUrl: "https://tonejs.github.io/audio/salamander/",
                 onload: () => {
                     status.textContent = "READY TO PLAY";
                     playBtn.disabled = false;
                 }
-            }).toDestination();
+            });
+
+            synth.chain(chorus, reverb, Tone.Destination);
         }
 
         midiUpload.addEventListener('change', async (e) => {
@@ -374,23 +342,27 @@
         }
 
         function getKeyRow(key) {
-            const index = keyArray.indexOf(key);
-            if (index <= 16) return 0;
-            if (index <= 35) return 1;
-            if (index <= 49) return 2;
+            if ('1!2@3#4$5%6^7&8*9(0'.includes(key)) return 0;
+            if ('qQwWeErRtTyYuUiIoOpP'.includes(key)) return 1;
+            if ('aAsSdDfFgGhHjJkKlL'.includes(key)) return 2;
             return 3;
         }
 
         function getKeyOrderInRow(key) {
-            const index = keyArray.indexOf(key);
-            if (index <= 16) return index;
-            if (index <= 35) return index - 17;
-            if (index <= 49) return index - 36;
-            return index - 50;
+            const rows = [
+                '1!2@3#4$5%6^7&8*9(0',
+                'qQwWeErRtTyYuUiIoOpP',
+                'aAsSdDfFgGhHjJkKlL',
+                'zZxXcCvVbBnNmM'
+            ];
+
+            const row = rows[getKeyRow(key)];
+            const index = row.indexOf(key);
+            return index < 0 ? 0 : index;
         }
 
         function displayKeyChar(char) {
-            return char === '0' ? 'θ' : char;
+            return char;
         }
 
         function resize() {
@@ -423,15 +395,25 @@
             }
         }
 
-        function triggerNote(note) {
+        function playMappedKeySound(key) {
+            const midi = KEY_TO_MIDI[key];
+            if (midi === undefined) return;
+
+            const transposedMidi = Tone.Frequency(midi + transpose, "midi").toNote();
+            synth.triggerAttackRelease(transposedMidi, "8n");
+        }
+
+        function triggerNote(note, playSound = true) {
             note.active = false;
             score += 1000 + (combo * 10);
             combo++;
 
             createParticles(HIT_X, (note.lane) * LANE_HEIGHT + OFFSET_Y + 50, COLORS[note.lane]);
 
-            const transposedMidi = Tone.Frequency(note.midi + transpose, "midi").toNote();
-            synth.triggerAttackRelease(transposedMidi, "8n");
+            if (playSound) {
+                const transposedMidi = Tone.Frequency(note.midi + transpose, "midi").toNote();
+                synth.triggerAttackRelease(transposedMidi, "8n");
+            }
 
             isWaiting = false;
             updateUI();
@@ -461,24 +443,19 @@
             const pressedMidi = KEY_TO_MIDI[key];
             if (pressedMidi === undefined) return;
 
+            playMappedKeySound(key);
+
             const target = notes.find(n =>
                 n.active &&
                 n.midi === pressedMidi &&
-                Math.abs(gameTime - n.time) < 0.25
+                Math.abs(gameTime - n.time) < MANUAL_HIT_WINDOW_SEC
             );
 
-            const lane = getLaneFromMidi(pressedMidi);
-
             if (target) {
-                triggerNote(target);
+                triggerNote(target, false);
                 showJudgment("ACCURATE", "#1e293b");
             }
 
-            const laneEl = document.querySelector(`.lane-info[data-lane="${lane}"]`);
-            if (laneEl) {
-                laneEl.classList.add('active');
-                setTimeout(() => laneEl.classList.remove('active'), 150);
-            }
         }
 
         function updateUI() {
@@ -503,66 +480,55 @@
                 }
             }
 
-            ctx.fillStyle = '#f8fafc';
+            ctx.fillStyle = '#020617';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (let i = 0; i < 4; i++) {
-                const y = i * LANE_HEIGHT + OFFSET_Y;
-                ctx.strokeStyle = '#f1f5f9';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(0, y + LANE_HEIGHT);
-                ctx.lineTo(canvas.width, y + LANE_HEIGHT);
-                ctx.stroke();
-
-                const hasActiveInLane = notes.some(
-                    n => n.active && n.lane === i && Math.abs(n.time - gameTime) < 0.01
-                );
-
-                ctx.strokeStyle = (isPlaying && isWaiting && hasActiveInLane) ? COLORS[i] : '#e2e8f0';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.moveTo(HIT_X, y + 15);
-                ctx.lineTo(HIT_X, y + 85);
-                ctx.stroke();
-            }
+            ctx.strokeStyle = '#a3e635';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(HIT_X, 0);
+            ctx.lineTo(HIT_X, canvas.height);
+            ctx.stroke();
 
             displayGroups.forEach(group => {
                 const groupNotes = group.notes.filter(n => n.active);
                 if (groupNotes.length === 0) return;
 
                 const groupX = HIT_X + (group.time - gameTime) * SPEED;
-                const ordered = [...groupNotes].sort((a, b) =>
-                    getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)
-                );
+                const rows = [[], [], [], []];
 
-                const letterStep = 21;
-                const boxWidth = Math.max(160, 28 + ordered.length * letterStep + 12);
-                const boxHeight = 160;
+                [...groupNotes]
+                    .sort((a, b) =>
+                        getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)
+                    )
+                    .forEach(note => {
+                        rows[getKeyRow(note.char)].push(note);
+                    });
+
+                const rowStrings = rows.map(row => row.map(note => displayKeyChar(note.char)).join(''));
+                const lineHeight = 28;
+                const boxPaddingY = 18;
                 const boxY = canvas.height * 0.38;
+                const boxX = groupX;
 
-                if (groupX + boxWidth < 0 || groupX > canvas.width + 100) return;
+                if (groupX < -120 || groupX > canvas.width + 100) return;
 
-                ctx.fillStyle = 'rgba(127, 255, 0, 0.00)';
-                ctx.strokeStyle = '#111111';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.rect(groupX, boxY, boxWidth, boxHeight);
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.font = 'bold 30px monospace';
+                ctx.font = '400 24px monospace';
                 ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = '#f8fafc';
+                ctx.shadowColor = 'rgba(14, 165, 233, 0.45)';
+                ctx.shadowBlur = 8;
 
-                ordered.forEach((note, idx) => {
-                    const textX = groupX + 8 + (idx * letterStep);
-                    const textY = boxY + 92;
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#111111';
-                    ctx.strokeText(displayKeyChar(note.char), textX, textY);
-                    ctx.fillStyle = '#111111';
-                    ctx.fillText(displayKeyChar(note.char), textX, textY);
+                rowStrings.forEach((text, rowIndex) => {
+                    if (!text) return;
+
+                    const textX = boxX;
+                    const textY = boxY + boxPaddingY + (rowIndex * lineHeight);
+                    ctx.fillText(text, textX, textY);
                 });
+
+                ctx.shadowBlur = 0;
             });
 
             particles.forEach(p => {
