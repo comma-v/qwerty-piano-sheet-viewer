@@ -506,12 +506,23 @@
                     });
 
                 const rowStrings = rows.map(row => row.map(note => displayKeyChar(note.char)).join(''));
+                const maxRowLength = Math.max(1, ...rowStrings.map(text => text.length));
+                const boxWidth = Math.max(64, 20 + maxRowLength * 16);
                 const lineHeight = 28;
                 const boxPaddingY = 18;
+                const boxHeight = boxPaddingY * 2 + (lineHeight * 4);
                 const boxY = canvas.height * 0.38;
                 const boxX = groupX;
 
                 if (groupX < -120 || groupX > canvas.width + 100) return;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.28)';
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.38)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(boxX, boxY, boxWidth, boxHeight);
+                ctx.fill();
+                ctx.stroke();
 
                 ctx.font = '400 24px monospace';
                 ctx.textAlign = 'left';
@@ -523,7 +534,7 @@
                 rowStrings.forEach((text, rowIndex) => {
                     if (!text) return;
 
-                    const textX = boxX;
+                    const textX = boxX + 10;
                     const textY = boxY + boxPaddingY + (rowIndex * lineHeight);
                     ctx.fillText(text, textX, textY);
                 });
