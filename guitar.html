@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar MIDI Stepper - Case Sensitive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020617;
+            font-family: 'Pretendard', sans-serif;
+            color: #e2e8f0;
+        }
+
+        canvas { display: block; }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .controls-container {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            max-width: 95vw;
+            background: rgba(15, 23, 42, 0.96);
+            border-radius: 24px 24px 0 0;
+            pointer-events: auto;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-bottom: none;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.45);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+        }
+
+        .controls-container.collapsed {
+            transform: translateX(-50%) translateY(calc(100% - 60px));
+        }
+
+        .toggle-btn {
+            width: 40px;
+            height: 24px;
+            background: #1e293b;
+            border-radius: 12px;
+            margin: 8px auto;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-icon {
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #94a3b8;
+            transition: transform 0.3s;
+        }
+
+        .collapsed .toggle-icon { transform: rotate(180deg); }
+
+        .judgment-text {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            font-size: 2.5rem;
+            font-weight: 900;
+            opacity: 0;
+            transition: all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            pointer-events: none;
+            z-index: 30;
+            font-style: italic;
+        }
+
+        .judgment-text.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="overlay">
+        <div id="judgment" class="judgment-text">PERFECT</div>
+
+        <div id="controls-panel" class="controls-container">
+            <div class="toggle-btn" id="panel-toggle"><div class="toggle-icon"></div></div>
+            <div class="px-8 pb-8">
+                <div class="flex justify-between items-center h-[28px] mb-6">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-sm font-black tracking-tight text-slate-100 italic">GUITAR MIDI STEPPER</h2>
+                        <div id="transpose-val" class="text-[10px] bg-slate-800 px-3 py-1 rounded-full font-bold text-slate-300">TRP +0</div>
+                    </div>
+                    <div class="flex gap-8 items-center">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-[9px] text-slate-400 font-bold uppercase">Score</span>
+                            <span id="score-val" class="text-xl font-black tabular-nums text-slate-100">0</span>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-[9px] text-slate-400 font-bold uppercase">Combo</span>
+                            <span id="combo-val" class="text-xl font-black text-indigo-400 tabular-nums">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="expanded-content" class="space-y-6">
+                    <div class="grid grid-cols-2 gap-6 items-end">
+                        <div class="space-y-2">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">MIDI Library</label>
+                            <input type="file" id="midi-upload" accept=".mid,.midi" class="block w-full text-[10px] text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer" />
+                            <div id="status" class="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">WAITING FOR SYSTEM...</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="play-btn" disabled class="flex-1 bg-indigo-500 text-white py-4 rounded-2xl font-black text-xs hover:bg-indigo-400 transition-all shadow-lg active:scale-95 disabled:opacity-20">START SESSION</button>
+                            <button id="stop-btn" class="px-6 bg-slate-800 text-slate-400 py-4 rounded-2xl font-black text-xs hover:text-slate-100 transition-colors">■</button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-800 flex justify-between items-center">
+                        <div class="space-y-1">
+                            <p class="text-[9px] text-slate-500 font-bold uppercase">Mapping Info</p>
+                            <p class="text-[10px] text-slate-300 leading-tight">Case Sensitive: 'a' and 'A' are different. SPACE for auto-step.</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <div class="px-3 h-6 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300">SHIFT + KEY</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        const playBtn = document.getElementById('play-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const midiUpload = document.getElementById('midi-upload');
+        const scoreVal = document.getElementById('score-val');
+        const comboVal = document.getElementById('combo-val');
+        const judgmentEl = document.getElementById('judgment');
+        const transposeEl = document.getElementById('transpose-val');
+        const controlsPanel = document.getElementById('controls-panel');
+        const panelToggle = document.getElementById('panel-toggle');
+
+        let synth;
+        let midiData = null;
+        let isPlaying = false;
+        let gameTime = 0;
+        let lastTimestamp = 0;
+        let notes = [];
+        let particles = [];
+        let score = 0;
+        let combo = 0;
+        let isWaiting = false;
+        let transpose = 0;
+        let lastProcessedNoteTime = -1;
+        let displayGroups = [];
+        const MANUAL_HIT_WINDOW_SEC = 0.35;
+
+        const HIT_X = 240;
+        const SPEED = 450;
+        const LANE_HEIGHT = 100;
+        const OFFSET_Y = 120;
+        const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
+
+        const keyArray = [
+            '1', '!', '2', '@', '3', '4', '$', '5', '%', '6', '^', '7', '8', '*', '9', '(',
+            '0', 'q', 'Q', 'w', 'W', 'e', 'E', 'r', 't', 'T', 'y', 'Y', 'u', 'i', 'I', 'o',
+            'O', 'p', 'P', 'a', 's', 'S', 'd', 'D', 'f', 'g', 'G', 'h', 'H', 'j', 'J', 'k',
+            'l', 'L', 'z', 'Z', 'x', 'c', 'C', 'v', 'V', 'b', 'B', 'n', 'm', 'M'
+        ];
+
+        const KEY_TO_MIDI = {};
+        const MIDI_TO_KEY = {};
+        for (let i = 0; i < keyArray.length; i++) {
+            const midi = i + 36;
+            KEY_TO_MIDI[keyArray[i]] = midi;
+            MIDI_TO_KEY[midi] = keyArray[i];
+        }
+
+        function getLaneFromMidi(midi) {
+            if (midi >= 36 && midi <= 51) return 0;
+            if (midi >= 52 && midi <= 67) return 1;
+            if (midi >= 68 && midi <= 83) return 2;
+            return 3;
+        }
+
+        function getNearestMappedMidi(midi) {
+            const minMidi = 36;
+            const maxMidi = 36 + keyArray.length - 1;
+            return Math.max(minMidi, Math.min(maxMidi, midi));
+        }
+
+        panelToggle.onclick = () => controlsPanel.classList.toggle('collapsed');
+
+        window.onload = function () {
+            if (typeof Tone !== 'undefined') {
+                initGuitarSynth().catch(() => { status.textContent = 'AUDIO INIT FAILED'; });
+            } else {
+                status.textContent = 'TONE.JS LOAD FAILED';
+            }
+            requestAnimationFrame(draw);
+        };
+
+        async function initGuitarSynth() {
+            const chorus = new Tone.Chorus({
+                frequency: 1.25,
+                delayTime: 4.5,
+                depth: 0.2,
+                spread: 180,
+                wet: 0.16
+            }).start();
+
+            const reverb = new Tone.Reverb({
+                decay: 2.6,
+                preDelay: 0.015,
+                wet: 0.24
+            });
+            await reverb.generate();
+
+            synth = new Tone.PolySynth(Tone.PluckSynth, {
+                volume: -8
+            });
+
+            synth.chain(chorus, reverb, Tone.Destination);
+        }
+
+        midiUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const midi = new Midi(event.target.result);
+                midiData = midi;
+                status.innerHTML = `FILE: ${file.name.slice(0, 20)}...`;
+                notes = [];
+
+                midi.tracks.forEach(track => {
+                    track.notes.forEach(note => {
+                        const mappedMidi = getNearestMappedMidi(note.midi);
+                        const mappedKey = MIDI_TO_KEY[mappedMidi] || '?';
+                        const lane = getLaneFromMidi(mappedMidi);
+
+                        notes.push({
+                            sourceMidi: note.midi,
+                            midi: mappedMidi,
+                            time: note.time,
+                            duration: note.duration,
+                            name: note.name,
+                            char: mappedKey,
+                            lane: lane,
+                            active: true
+                        });
+                    });
+                });
+
+                notes.sort((a, b) => a.time - b.time);
+                displayGroups = groupNotesForDisplay(notes);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function groupNotesForDisplay(sourceNotes) {
+            if (sourceNotes.length === 0) return [];
+
+            const groups = [];
+            let currentGroup = [sourceNotes[0]];
+            let groupStartTime = sourceNotes[0].time;
+
+            for (let i = 1; i < sourceNotes.length; i++) {
+                const note = sourceNotes[i];
+                if (Math.abs(note.time - groupStartTime) < 0.03) {
+                    currentGroup.push(note);
+                } else {
+                    groups.push({ time: groupStartTime, notes: currentGroup });
+                    currentGroup = [note];
+                    groupStartTime = note.time;
+                }
+            }
+
+            groups.push({ time: groupStartTime, notes: currentGroup });
+            return groups;
+        }
+
+        function getKeyRow(key) {
+            if ('1!2@3#4$5%6^7&8*9(0'.includes(key)) return 0;
+            if ('qQwWeErRtTyYuUiIoOpP'.includes(key)) return 1;
+            if ('aAsSdDfFgGhHjJkKlL'.includes(key)) return 2;
+            return 3;
+        }
+
+        function getKeyOrderInRow(key) {
+            const rows = [
+                '1!2@3#4$5%6^7&8*9(0',
+                'qQwWeErRtTyYuUiIoOpP',
+                'aAsSdDfFgGhHjJkKlL',
+                'zZxXcCvVbBnNmM'
+            ];
+
+            const row = rows[getKeyRow(key)];
+            const index = row.indexOf(key);
+            return index < 0 ? 0 : index;
+        }
+
+        function displayKeyChar(char) { return char; }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function showJudgment(text, color) {
+            judgmentEl.innerText = text;
+            judgmentEl.style.color = color;
+            judgmentEl.classList.remove('show');
+            void judgmentEl.offsetWidth;
+            judgmentEl.classList.add('show');
+            setTimeout(() => judgmentEl.classList.remove('show'), 400);
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x,
+                    y,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 1.0,
+                    size: Math.random() * 3 + 2,
+                    color
+                });
+            }
+        }
+
+        function playMappedKeySound(key) {
+            const midi = KEY_TO_MIDI[key];
+            if (midi === undefined) return;
+
+            const transposedMidi = Tone.Frequency(midi + transpose, 'midi').toNote();
+            synth.triggerAttackRelease(transposedMidi, 1.2);
+        }
+
+        function triggerNote(note, playSound = true) {
+            note.active = false;
+            score += 1000 + (combo * 10);
+            combo++;
+            createParticles(HIT_X, (note.lane) * LANE_HEIGHT + OFFSET_Y + 50, COLORS[note.lane]);
+
+            if (playSound) {
+                const transposedMidi = Tone.Frequency(note.midi + transpose, 'midi').toNote();
+                synth.triggerAttackRelease(transposedMidi, 1.2);
+            }
+
+            isWaiting = false;
+            updateUI();
+        }
+
+        function processSingleStep() {
+            if (!isPlaying) return;
+
+            const candidates = notes.filter(n => n.active && Math.abs(gameTime - n.time) < 0.4).sort((a, b) => a.time - b.time);
+
+            if (candidates.length > 0) {
+                const headTime = candidates[0].time;
+                if (headTime === lastProcessedNoteTime) return;
+
+                const group = candidates.filter(n => Math.abs(n.time - headTime) < 0.03);
+                group.forEach(n => triggerNote(n));
+                lastProcessedNoteTime = headTime;
+                showJudgment('PERFECT STEP', '#6366f1');
+            }
+        }
+
+        function processManualKey(key) {
+            if (!isPlaying) return;
+
+            const pressedMidi = KEY_TO_MIDI[key];
+            if (pressedMidi === undefined) return;
+
+            playMappedKeySound(key);
+
+            const target = notes.find(n => n.active && n.midi === pressedMidi && Math.abs(gameTime - n.time) < MANUAL_HIT_WINDOW_SEC);
+            if (target) {
+                triggerNote(target, false);
+                showJudgment('ACCURATE', '#1e293b');
+            }
+        }
+
+        function updateUI() {
+            scoreVal.innerText = score.toLocaleString();
+            comboVal.innerText = combo;
+        }
+
+        function draw(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            if (isPlaying && !isWaiting) gameTime += deltaTime;
+
+            if (isPlaying && !isWaiting) {
+                const next = notes.find(n => n.active && n.time <= gameTime + 0.005);
+                if (next) {
+                    isWaiting = true;
+                    gameTime = next.time;
+                }
+            }
+
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#a3e635';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(HIT_X, 0);
+            ctx.lineTo(HIT_X, canvas.height);
+            ctx.stroke();
+
+            displayGroups.forEach(group => {
+                const groupNotes = group.notes.filter(n => n.active);
+                if (groupNotes.length === 0) return;
+
+                const groupX = HIT_X + (group.time - gameTime) * SPEED;
+                const rows = [[], [], [], []];
+
+                [...groupNotes].sort((a, b) =>
+                    getKeyRow(a.char) - getKeyRow(b.char) || getKeyOrderInRow(a.char) - getKeyOrderInRow(b.char)
+                ).forEach(note => rows[getKeyRow(note.char)].push(note));
+
+                const rowStrings = rows.map(row => row.map(note => displayKeyChar(note.char)).join(''));
+                const maxRowLength = Math.max(1, ...rowStrings.map(text => text.length));
+                const boxWidth = Math.max(64, 20 + maxRowLength * 16);
+                const lineHeight = 28;
+                const boxPaddingY = 18;
+                const boxHeight = boxPaddingY * 2 + (lineHeight * 4);
+                const boxY = canvas.height * 0.38;
+
+                if (groupX < -120 || groupX > canvas.width + 100) return;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.28)';
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.38)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(groupX, boxY, boxWidth, boxHeight);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = '400 24px monospace';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = '#f8fafc';
+                ctx.shadowColor = 'rgba(14, 165, 233, 0.45)';
+                ctx.shadowBlur = 8;
+
+                rowStrings.forEach((text, rowIndex) => {
+                    if (!text) return;
+                    ctx.fillText(text, groupX + 10, boxY + boxPaddingY + (rowIndex * lineHeight));
+                });
+
+                ctx.shadowBlur = 0;
+            });
+
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.04;
+            });
+
+            particles = particles.filter(p => p.life > 0);
+            ctx.globalAlpha = 1.0;
+            requestAnimationFrame(draw);
+        }
+
+        playBtn.onclick = async () => {
+            if (!midiData) return;
+            await Tone.start();
+            score = 0;
+            combo = 0;
+            gameTime = 0;
+            lastProcessedNoteTime = -1;
+            notes.forEach(n => n.active = true);
+            isPlaying = true;
+            isWaiting = false;
+            status.innerHTML = 'ACTIVE SESSION';
+            updateUI();
+            controlsPanel.classList.add('collapsed');
+        };
+
+        stopBtn.onclick = () => {
+            isPlaying = false;
+            status.innerHTML = 'STOPPED';
+            controlsPanel.classList.remove('collapsed');
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+
+            if (e.key === 'ArrowRight') {
+                transpose++;
+                transposeEl.innerText = `TRP ${transpose >= 0 ? '+' : ''}${transpose}`;
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                transpose--;
+                transposeEl.innerText = `TRP ${transpose >= 0 ? '+' : ''}${transpose}`;
+                return;
+            }
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                processSingleStep();
+            } else {
+                processManualKey(e.key);
+            }
+        });
+    </script>
+</body>
+
+</html>
